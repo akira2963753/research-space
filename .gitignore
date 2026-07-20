@@ -39,3 +39,6 @@ alib-*/
 *~
 .DS_Store
 Thumbs.db
+
+# Claude Code session state / worktrees (never commit)
+.claude/
