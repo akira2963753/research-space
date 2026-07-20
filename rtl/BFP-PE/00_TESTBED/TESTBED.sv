@@ -21,8 +21,8 @@ module TESTBED;
     logic [`BFP_EXP_W-1:0] w_exp, a_exp;
     logic [`BFP_MAN_BW-1:0] w_man_b, a_man_b;
     logic o_sign;
-    logic [`FP16_EXP_W-1:0] o_exp;
-    logic [`FP16_MAN_W-1:0] o_man;
+    logic [`FPACC_EXP_W-1:0] o_exp;
+    logic [`FPACC_MAN_W-1:0] o_man;
 
     //=============================================================
     // ---------------------------- DUT ---------------------------

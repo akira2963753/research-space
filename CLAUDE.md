@@ -79,16 +79,20 @@ All accept `--output-dir`; `plot_ob_skip.py` accepts `--group-size/--threshold-m
 BFP_PE.sv      weight-stationary top: preload latches one packed weight block + clears acc;
                every non-preload cycle accumulates one activation block. No valid/ready.
  ├─ INT_MAC.sv per-lane sign XOR + unsigned mantissa multiply -> signed adder-tree reduction
- └─ FP_ACC.sv  Group-N integer dot product -> FP16, accumulated in one FP16 register
-BFP_PKG.sv     LOD (leading-one detect), fixed-point->FP16 NORM, custom FP16_ADD
+ └─ FP_ACC.sv  Group-N integer dot product -> FP32, accumulated in one FP32 register
+BFP_PKG.sv     LOD (leading-one detect), fixed-point->FP32 NORM, custom FP_ADD
 include.svh    all format/width macros; everything else is derived from GSIZE/MAN_W/EXP_W
 ```
 
 Current config is **G16 / E5 / M3**, whereas the software main experiment is **G32 / E5 / M7
 (BFP8)**. This mismatch is unresolved — never compare G16/M3 RTL against G32/BFP8 PPL.
 
-The comments in `include.svh` (96-bit mantissa bus, 32-bit sign bus, 12/11-bit sum/mag) are
-**stale**; at G16/M3 the macros elaborate to 48-bit mantissa, 16-bit sign, 11-bit sum, 10-bit mag.
+The FP accumulator is **custom FP32** (1s/8e/23m, bias 127) as of 2026-07-20, parameterized via
+`FPACC_EXP_W` / `FPACC_MAN_W` / `FPACC_EXP_BIAS`; set them to 5/10/15 to get the old FP16
+variant back for area comparison. `NORM` rebiases by `FPACC_EXP_BIAS - BFP_EXP_BIAS = 112`.
+The FP16 accumulator saturated or flushed **30.2%** of all nonzero dot products — do not
+resurrect it as a baseline without noting that. All server-side sim/synthesis passes predate
+this change and must be re-run.
 
 ### Pattern generation
 
@@ -112,9 +116,9 @@ cd rtl/BFP-PE/02_SYN     && ./02_run                # DC synthesis     (make syn
 cd rtl/BFP-PE/03_GATE    && ./03_run                # gate-level VCS   (make vcs_gate, +define+GATE)
 ```
 
-`02_SYN/syn90.tcl` (TSMC 90nm, `CYCLE = 10` ns) is the active script; `syn16.tcl` targets the
-N16ADFP flow and is not the current baseline. Synthesis writes `Netlist/`, `Report/`, `Work/`,
-which `03_GATE/file.f` then consumes.
+`02_SYN/syn16.tcl` (TSMC 16nm N16ADFP) is the active script — `makefile` points `syn_tcl` at it.
+`syn90.tcl` was deleted on 2026-07-20; do not recreate it. Synthesis writes `Netlist/`,
+`Report/`, `Work/`, which `03_GATE/file.f` then consumes.
 
 **Simulation/synthesis artifacts live on the server, not in this repo.** Logs, area reports,
 netlists, and SDF are intentionally not mirrored locally. Their absence is not evidence the flow

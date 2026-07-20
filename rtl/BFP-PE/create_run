@@ -30,7 +30,6 @@ FILES="
 02_SYN/02_run
 02_SYN/file.f
 02_SYN/syn16.tcl
-02_SYN/syn90.tcl
 03_GATE/03_run
 03_GATE/file.f
 "

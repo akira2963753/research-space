@@ -28,8 +28,8 @@ module PATTERN(
     output logic [`BFP_MAN_BW-1:0] a_man_b,
     // DUT outputs (observed by PATTERN)
     input o_sign,
-    input [`FP16_EXP_W-1:0] o_exp,
-    input [`FP16_MAN_W-1:0] o_man
+    input [`FPACC_EXP_W-1:0] o_exp,
+    input [`FPACC_MAN_W-1:0] o_man
 );
 
     //=============================================================
@@ -46,7 +46,7 @@ module PATTERN(
     logic [`BFP_SIGN_BW-1:0] ws_i, as_i;
     logic [`BFP_EXP_W-1:0] we_i, ae_i;
     logic [`BFP_MAN_BW-1:0] wm_i, am_i;
-    logic [`FP16_W-1:0] gold_i;
+    logic [`FPACC_W-1:0] gold_i;
 
     //=============================================================
     // ------------------------ Reset Task ------------------------
@@ -78,7 +78,7 @@ module PATTERN(
         input [`BFP_SIGN_BW-1:0] as,
         input [`BFP_EXP_W-1:0] ae,
         input [`BFP_MAN_BW-1:0] am,
-        input [`FP16_W-1:0] gold
+        input [`FPACC_W-1:0] gold
     );
         @(negedge clk);
         preload = pre;
@@ -91,7 +91,7 @@ module PATTERN(
         @(posedge clk);
         #1;
         if ({o_sign, o_exp, o_man} !== gold) begin
-            $display("[ERROR] cycle %0d : DUT=%h  golden=%h  (preload=%b)",
+            $display("[ERROR] cycle %0d : 32-bit DUT=%08h  golden=%08h  (preload=%b)",
                      idx, {o_sign, o_exp, o_man}, gold, pre);
             $fatal(1, "[ERROR] : output mismatch at cycle %0d", idx);
         end
@@ -103,7 +103,7 @@ module PATTERN(
     //=============================================================
     initial begin
         reset_dut();
-        fin   = $fopen("../00_TESTBED/input.dat", "r");
+        fin = $fopen("../00_TESTBED/input.dat", "r");
         fgold = $fopen("../00_TESTBED/golden.dat", "r");
         if (fin == 0 || fgold == 0) $fatal(1, "[ERROR] : cannot open input.dat / golden.dat");
         idx = 0;
@@ -111,14 +111,14 @@ module PATTERN(
             r = $fscanf(fin, "%h %h %h %h %h %h %h",
                         pre_i, ws_i, we_i, wm_i, as_i, ae_i, am_i);
             if (r != 7) break;
-            rg = $fscanf(fgold, "%h", gold_i);
+            rg = $fscanf(fgold, "%8h", gold_i);
             if (rg != 1) $fatal(1, "[ERROR] : golden.dat shorter than input.dat");
             drive_and_check(pre_i, ws_i, we_i, wm_i, as_i, ae_i, am_i, gold_i);
         end
         $fclose(fin);
         $fclose(fgold);
         $display("=========================================================");
-        $display("  BFP-PE PATTERN PASS : %0d cycles verified, 0 error", idx);
+        $display("  BFP-PE PATTERN PASS : %0d 32-bit outputs verified, 0 errors", idx);
         $display("=========================================================");
         $finish;
     end

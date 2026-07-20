@@ -7,43 +7,50 @@
 #     input.dat  : one cycle of stimulus per line
 #                  "<preload> <w_sign_b> <w_exp> <w_man_b> <a_sign_b> <a_exp> <a_man_b>"
 #                  all hex, widths matching the RTL packed buses.
-#     golden.dat : one 16-bit hex per line = {o_sign, o_exp[4:0], o_man[9:0]}
-#                  = the FP16 accumulator value the RTL holds AFTER that cycle.
+#     golden.dat : one 32-bit hex per line = {o_sign, o_exp[7:0], o_man[22:0]}
+#                  = the FP accumulator value the RTL holds AFTER that cycle.
 #
 #   The golden model is a BIT-EXACT re-implementation of INT_MAC + BFP_PKG
-#   (LOD / NORM / FP16_ADD), including truncation, flush-to-zero and saturation,
+#   (LOD / NORM / FP_ADD), including truncation, flush-to-zero and saturation,
 #   so a passing testbench proves the RTL matches this reference exactly.
 # -----------------------------------------------------------------------------
 import random
 
 # ---- Parameters (mirror include.svh) ----------------------------------------
-# Only GSIZE / MAN_W / EXP_W need editing; the datapath widths are DERIVED with
-# the same formulas as include.svh, so the model tracks any BFP_GSIZE change.
-GSIZE     = 16        # <-- must match `BFP_GSIZE in include.svh
-MAN_W     = 3
-EXP_W     = 5
-EXP_BIAS  = 15
-FP16_MAN  = 10
-FP16_EXP  = 5
+# BFP input and FP accumulator parameters mirror include.svh; all datapath
+# widths are derived with the same formulas so both sides stay in lockstep.
+GSIZE = 16  # <-- must match `BFP_GSIZE in include.svh
+MAN_W = 3
+EXP_W = 5
+EXP_BIAS = 15
+
+# Default FP32: 8 exponent / 23 mantissa / 32 total / bias 127.
+# FP16 comparison: 5 exponent / 10 mantissa / 16 total / bias 15; edit the
+# exponent, mantissa, and bias values only.
+FPACC_EXP_W = 8
+FPACC_MAN_W = 23
+FPACC_EXP_BIAS = 127
 
 def _clog2(n):
     return (n - 1).bit_length()
 
-PROD_W    = 2 * MAN_W                    # BFP_PROD_W
-SPROD_W   = PROD_W + 1                   # BFP_SPROD_W
-SUM_W     = SPROD_W + _clog2(GSIZE)      # BFP_SUM_W
-MAG_W     = SUM_W - 1                    # BFP_MAG_W : unsigned |dot-product|
+PROD_W = 2 * MAN_W  # BFP_PROD_W
+SPROD_W = PROD_W + 1  # BFP_SPROD_W
+SUM_W = SPROD_W + _clog2(GSIZE)  # BFP_SUM_W
+MAG_W = SUM_W - 1  # BFP_MAG_W : unsigned |dot-product|
+FPACC_W = 1 + FPACC_EXP_W + FPACC_MAN_W
 
-MAN_MASK  = (1 << MAN_W) - 1        # 0..7
-EXP_MASK  = (1 << EXP_W) - 1        # 0..31
-MAG_MASK  = (1 << MAG_W) - 1
-SIG_MASK  = (1 << (FP16_MAN + 1)) - 1   # FP16 significand {1,man}, always 11 bits
-MAN10     = (1 << FP16_MAN) - 1
-EXP5      = (1 << FP16_EXP) - 1
+MAN_MASK = (1 << MAN_W) - 1  # 0..7
+EXP_MASK = (1 << EXP_W) - 1  # 0..31
+MAG_MASK = (1 << MAG_W) - 1
+FPACC_SIG_MASK = (1 << (FPACC_MAN_W + 1)) - 1
+FPACC_MAN_MASK = (1 << FPACC_MAN_W) - 1
+FPACC_EXP_MASK = (1 << FPACC_EXP_W) - 1
+FPACC_ADD_MASK = (1 << (FPACC_MAN_W + 2)) - 1
 
 # ---- Bit-exact primitives ----------------------------------------------------
-# Two leading-one detectors, matching BFP_PKG: they act on different widths and
-# only coincide when GSIZE == 32, so they must stay distinct.
+# Two leading-one detectors, matching BFP_PKG: they act on independently
+# parameterized widths, so they stay distinct.
 def lod_mag(val):
     """Leading zeros of a MAG_W-bit value (matches BFP_PKG::LOD_MAG)."""
     if val == 0:
@@ -51,32 +58,38 @@ def lod_mag(val):
     return MAG_W - 1 - (val.bit_length() - 1)
 
 def lod_sig(val):
-    """Leading zeros of an (FP16_MAN+1)-bit significand (matches BFP_PKG::LOD_SIG)."""
+    """Leading zeros of an (FPACC_MAN_W+1)-bit significand."""
     if val == 0:
-        return FP16_MAN
-    return FP16_MAN - (val.bit_length() - 1)
+        return FPACC_MAN_W
+    return FPACC_MAN_W - (val.bit_length() - 1)
 
 def norm(sign, mag, blk_exp):
-    """Fixed-point dot product -> FP16 16-bit word (matches BFP_PKG::NORM)."""
+    """Fixed-point dot product -> FP accumulator word (matches BFP_PKG::NORM)."""
     if mag == 0:
         return 0
-    lz       = lod_mag(mag)
+    lz = lod_mag(mag)
     norm_mag = (mag << lz) & MAG_MASK
-    out_exp  = blk_exp + ((MAG_W - 1) - lz)
-    # Left-justify the fraction (MAG_W-1 bits) into the FP16 mantissa field:
-    # zero-padded when shorter than FP16_MAN, truncated when longer.
-    wide     = norm_mag << FP16_MAN
-    man      = (wide >> (MAG_W - 1)) & MAN10
-    if out_exp <= 0:                            # underflow -> zero
+    out_exp = blk_exp + (FPACC_EXP_BIAS - EXP_BIAS) + ((MAG_W - 1) - lz)
+    # Left-justify the fraction (MAG_W-1 bits) into the FP accumulator mantissa:
+    # zero-padded when shorter than FPACC_MAN_W, truncated when longer.
+    wide = norm_mag << FPACC_MAN_W
+    man = (wide >> (MAG_W - 1)) & FPACC_MAN_MASK
+    if out_exp <= 0:                                  # underflow -> zero
         return 0
-    if out_exp >= (EXP5):                       # overflow  -> saturate (exp==31)
-        return (sign << 15) | (EXP5 << 10) | MAN10
-    return (sign << 15) | ((out_exp & EXP5) << 10) | man
+    if out_exp >= FPACC_EXP_MASK:                     # overflow -> saturate
+        return ((sign << (FPACC_W - 1)) |
+                (FPACC_EXP_MASK << FPACC_MAN_W) | FPACC_MAN_MASK)
+    return ((sign << (FPACC_W - 1)) |
+            ((out_exp & FPACC_EXP_MASK) << FPACC_MAN_W) | man)
 
-def fp16_add(A, B):
-    """FP16 add (matches BFP_PKG::FP16_ADD). exp==0 denotes zero."""
-    A_sign, A_exp, A_man = (A >> 15) & 1, (A >> 10) & EXP5, A & MAN10
-    B_sign, B_exp, B_man = (B >> 15) & 1, (B >> 10) & EXP5, B & MAN10
+def fp_add(A, B):
+    """FP add (matches BFP_PKG::FP_ADD). exp==0 denotes zero."""
+    A_sign = (A >> (FPACC_W - 1)) & 1
+    A_exp = (A >> FPACC_MAN_W) & FPACC_EXP_MASK
+    A_man = A & FPACC_MAN_MASK
+    B_sign = (B >> (FPACC_W - 1)) & 1
+    B_exp = (B >> FPACC_MAN_W) & FPACC_EXP_MASK
+    B_man = B & FPACC_MAN_MASK
 
     if A_exp == 0:
         return B
@@ -85,15 +98,15 @@ def fp16_add(A, B):
 
     # ---- Align ----
     if A_exp >= B_exp:
-        exp_diff   = (A_exp - B_exp) & EXP5
+        exp_diff = (A_exp - B_exp) & FPACC_EXP_MASK
         result_exp = A_exp
-        A_sig = (1 << FP16_MAN) | A_man
-        B_sig = ((1 << FP16_MAN) | B_man) >> exp_diff
+        A_sig = (1 << FPACC_MAN_W) | A_man
+        B_sig = ((1 << FPACC_MAN_W) | B_man) >> exp_diff
     else:
-        exp_diff   = (B_exp - A_exp) & EXP5
+        exp_diff = (B_exp - A_exp) & FPACC_EXP_MASK
         result_exp = B_exp
-        A_sig = ((1 << FP16_MAN) | A_man) >> exp_diff
-        B_sig = (1 << FP16_MAN) | B_man
+        A_sig = ((1 << FPACC_MAN_W) | A_man) >> exp_diff
+        B_sig = (1 << FPACC_MAN_W) | B_man
 
     # ---- Addition ----
     if A_sign == B_sign:
@@ -103,34 +116,39 @@ def fp16_add(A, B):
     else:
         result_add, result_sign = B_sig - A_sig, B_sign
 
-    result_add &= (1 << (FP16_MAN + 2)) - 1     # 12-bit reg
+    result_add &= FPACC_ADD_MASK
 
     # ---- FXP2FP (renormalize) ----
-    if (result_add >> (FP16_MAN + 1)) & 1:       # carry overflow
+    if (result_add >> (FPACC_MAN_W + 1)) & 1:    # carry overflow
         result_add >>= 1
-        result_man = result_add & MAN10
-        result_exp = (result_exp + 1) & EXP5
-        return (result_sign << 15) | (result_exp << 10) | result_man
-    if result_add == 0:                          # exact cancel
+        result_man = result_add & FPACC_MAN_MASK
+        if result_exp >= FPACC_EXP_MASK - 1:
+            return ((result_sign << (FPACC_W - 1)) |
+                    (FPACC_EXP_MASK << FPACC_MAN_W) | FPACC_MAN_MASK)
+        result_exp += 1
+        return ((result_sign << (FPACC_W - 1)) |
+                (result_exp << FPACC_MAN_W) | result_man)
+    if result_add == 0:                               # exact cancel
         return 0
-    lod_shift = lod_sig(result_add & SIG_MASK)
+    lod_shift = lod_sig(result_add & FPACC_SIG_MASK)
     if result_exp > lod_shift:
-        result_add = (result_add << lod_shift) & ((1 << (FP16_MAN + 2)) - 1)
+        result_add = (result_add << lod_shift) & FPACC_ADD_MASK
         result_exp = result_exp - lod_shift
-        result_man = result_add & MAN10
-        return (result_sign << 15) | ((result_exp & EXP5) << 10) | result_man
-    return 0                                     # underflow
+        result_man = result_add & FPACC_MAN_MASK
+        return ((result_sign << (FPACC_W - 1)) |
+                ((result_exp & FPACC_EXP_MASK) << FPACC_MAN_W) | result_man)
+    return 0                                          # underflow
 
 # ---- INT_MAC + block exponent (bit-exact) -----------------------------------
 def dot_norm(w, a):
     """One cycle of INT_MAC -> block exp -> NORM. w/a are dicts of lane lists."""
     s = 0
     for i in range(GSIZE):
-        p  = w["man"][i] * a["man"][i]
+        p = w["man"][i] * a["man"][i]
         ps = w["sign"][i] ^ a["sign"][i]
         s += -p if ps else p
     dp_sign = 1 if s < 0 else 0
-    dp_mag  = abs(s)
+    dp_mag = abs(s)
     blk_exp = w["exp"] + a["exp"] - EXP_BIAS
     return norm(dp_sign, dp_mag, blk_exp)
 
@@ -152,8 +170,8 @@ def rand_block(exp=None, sparsity=0.0):
     """A random BFP block. sparsity = fraction of lanes forced to zero mantissa."""
     if exp is None:
         exp = random.randint(0, EXP_MASK)
-    man  = [0 if random.random() < sparsity else random.randint(0, MAN_MASK)
-            for _ in range(GSIZE)]
+    man = [0 if random.random() < sparsity else random.randint(0, MAN_MASK)
+           for _ in range(GSIZE)]
     sign = [random.randint(0, 1) for _ in range(GSIZE)]
     return {"exp": exp, "man": man, "sign": sign}
 
@@ -183,14 +201,14 @@ def build_groups():
     a = {"exp": 16, "man": [MAN_MASK] * GSIZE, "sign": [0] * GSIZE}
     groups.append((w, [a, a]))
     # 4) Sign cancellation: symmetric +/- lanes -> dot product zero.
-    wman  = [random.randint(1, MAN_MASK) for _ in range(GSIZE)]
+    wman = [random.randint(1, MAN_MASK) for _ in range(GSIZE)]
     wsign = [0] * (GSIZE // 2) + [1] * (GSIZE // 2)
     w = {"exp": 15, "man": wman, "sign": wsign}
     a = {"exp": 15, "man": [1] * GSIZE, "sign": [0] * GSIZE}
     groups.append((w, [a]))
     # 5) Large exponent spread across accumulation (big + tiny addends).
-    big   = onehot_block(28, 3, MAN_MASK, 0)
-    tiny  = onehot_block(2, 3, 1, 0)
+    big = onehot_block(28, 3, MAN_MASK, 0)
+    tiny = onehot_block(2, 3, 1, 0)
     groups.append((onehot_block(15, 3, MAN_MASK, 0), [big, tiny, big, tiny]))
 
     # --- Randomized groups ---
@@ -211,15 +229,15 @@ def main():
     for w, acts in groups:
         # preload cycle : load weight, clear accumulator (activation = don't care)
         acc = 0
-        a0  = zero_block()
+        a0 = zero_block()
         fin_lines.append(fmt_input(1, w, a0))
-        gold_lines.append(f"{acc:04x}")
+        gold_lines.append(f"{acc:0{(FPACC_W + 3) // 4}x}")
         # accumulate cycles
         for a in acts:
             fp_a = dot_norm(w, a)
-            acc  = fp16_add(fp_a, acc)
+            acc = fp_add(fp_a, acc)
             fin_lines.append(fmt_input(0, w, a))
-            gold_lines.append(f"{acc:04x}")
+            gold_lines.append(f"{acc:0{(FPACC_W + 3) // 4}x}")
 
     with open("input.dat", "w") as f:
         f.write("\n".join(fin_lines) + "\n")

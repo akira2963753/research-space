@@ -20,8 +20,8 @@ module BFP_PE(
     input [`BFP_MAN_BW-1:0] w_man_b,
     input [`BFP_MAN_BW-1:0] a_man_b,
     output o_sign,
-    output [`FP16_EXP_W-1:0] o_exp,
-    output [`FP16_MAN_W-1:0] o_man
+    output [`FPACC_EXP_W-1:0] o_exp,
+    output [`FPACC_MAN_W-1:0] o_man
 );
 
     // -----------------------------------------------------------------------
@@ -45,7 +45,7 @@ module BFP_PE(
     end
 
     // -----------------------------------------------------------------------
-    // Block exponent adder (product exponent, biased FP16-style)
+    // Block exponent adder (product exponent, biased by BFP_EXP_BIAS)
     // -----------------------------------------------------------------------
     logic signed [`BFP_BEXP_W-1:0] blk_exp;
     assign blk_exp = $signed({1'b0, w_exp_reg}) + $signed({1'b0, a_exp}) - `BFP_EXP_BIAS;
@@ -66,7 +66,7 @@ module BFP_PE(
     );
 
     // -----------------------------------------------------------------------
-    // FP-Acc : Norm -> Align -> Addition -> FXP2FP + FP16 accumulator
+    // FP-Acc : Norm -> Align -> Addition -> FXP2FP + FP accumulator
     // -----------------------------------------------------------------------
     FP_ACC u_fp_acc(
         .clk(clk),

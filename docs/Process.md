@@ -26,10 +26,10 @@ are not complete.
 | Four-model fake BFP8-BFP4 sweep | Complete | G = 32, shared E5, non-overlapping WikiText-2 protocol |
 | LLaMA-2-7B DEWA T sweep | Complete | Legacy notebook/result names still use `ob_skip` / `obskip` |
 | Partial-sum exponent profiling | Complete | BFP8-BFP4 JSON and eight local PNG figures |
-| Baseline BFP-PE RTL | **In progress; RTL flow passes** | Current active task; VCS/synthesis artifacts are on the server |
+| Baseline BFP-PE RTL | **In progress; FP accumulator widened to FP32** | Current active task; VCS/synthesis artifacts are on the server |
 | Fixed-width INT-Acc overflow model | Not implemented | Required before claiming FP-Acc activation reduction |
 | DEWA RTL PE | Not implemented | Start only after the baseline BFP-PE numerical contract is frozen |
-| Baseline simulation/synthesis/gate flow | **Pass (user-confirmed)** | Logs, area reports, netlist/SDF, and related artifacts remain on the server, not in this local workspace |
+| Baseline simulation/synthesis/gate flow | **Stale — must be re-run** | The server-confirmed passes were for the FP16-accumulator RTL, which no longer exists. See "FP32 Accumulator Conversion" below. |
 
 ## Method Terminology
 
@@ -148,8 +148,9 @@ Current source structure:
   FP16 register.
 - `00_TESTBED/gen_pattern.py`: seeded bit-exact Python golden generator.
 - `00_TESTBED/PATTERN.sv` / `TESTBED.sv`: file-driven RTL checker.
-- `02_SYN/syn90.tcl`: Synopsys Design Compiler flow for the TSMC 90-nm library at a nominal
-  **10-ns clock period**.
+- `02_SYN/syn16.tcl`: Synopsys Design Compiler flow for the TSMC **16-nm (N16ADFP)** library.
+  The 90-nm script was deleted on 2026-07-20; `00_TESTBED/makefile` now points `syn_tcl` at
+  `syn16.tcl`. Reported synthesis results so far were taken at **500 MHz**.
 - `03_GATE/`: gate-level VCS flow using the synthesized netlist and SDF.
 
 Current RTL configuration from `01_RTL/include.svh`:
@@ -160,13 +161,16 @@ Current RTL configuration from `01_RTL/include.svh`:
 | Shared exponent width | 5 | 5 |
 | Per-value sign width | 1 | 1 |
 | Per-value magnitude mantissa width | 3 | 7 for BFP8 |
-| Running accumulator | Custom FP16 | FP32 in the DEWA functional model |
+| Running accumulator | **Custom FP32 (1s/8e/23m, bias 127)** | FP32 in the DEWA functional model |
 
 For the current **G16/E5/M3** RTL, the derived widths are 6-bit magnitude products, 7-bit
-signed products, an 11-bit signed dot-product sum, and a 10-bit output magnitude. The comments
-in `include.svh` that mention 96-bit mantissa/32-bit sign buses and 12/11-bit sum/magnitude are
-stale; the macros actually elaborate to 48-bit mantissa and 16-bit sign buses with 11/10-bit
-sum/magnitude.
+signed products, an 11-bit signed dot-product sum, and a 10-bit output magnitude. The
+`include.svh` comments were corrected on 2026-07-20 and now match what the macros actually
+elaborate to (48-bit mantissa bus, 16-bit sign bus, 11/10-bit sum/magnitude).
+
+The accumulator is parameterized through `FPACC_EXP_W` / `FPACC_MAN_W` / `FPACC_EXP_BIAS` in
+`include.svh`. Setting them to 5 / 10 / 15 restores the original FP16 accumulator, so both
+variants can be synthesized under identical constraints for an area comparison.
 
 Verification status:
 
@@ -174,9 +178,59 @@ Verification status:
 |---|---|
 | Python stimulus/golden generation | Present: 45 groups, 243 cycles, seed `20260720` |
 | Behavioral RTL source and file list | Present |
-| Behavioral VCS simulation | **Pass on server (user-confirmed); log is server-only** |
-| Synthesis/area flow | **Pass on server (user-confirmed); reports/artifacts are server-only** |
-| Gate-level flow | **Pass on server (user-confirmed); log/artifacts are server-only** |
+| Golden vs exact-float cross-check | **Pass (local): 198 cycles, max relative error 7.95e-08** |
+| Behavioral VCS simulation | **Stale — was FP16; must be re-run on the FP32 RTL** |
+| Synthesis/area flow | **Stale — was FP16; area numbers below no longer apply** |
+| Gate-level flow | **Stale — was FP16; must be re-run** |
+
+### FP32 Accumulator Conversion (2026-07-20)
+
+The FP accumulator was widened from custom FP16 to custom FP32 (1s / 8e / 23m, bias 127),
+keeping the existing non-IEEE conventions: truncation, no subnormals, `exp == 0` denotes zero,
+flush-to-zero on underflow, saturation on overflow.
+
+Motivation. `blk_exp = w_exp + a_exp - BFP_EXP_BIAS` is biased by 15 and ranges **-15..47**.
+`NORM` produces `out_exp = blk_exp + leading_one_index`, so with `BFP_MAG_W = 10` the required
+exponent range was **-15..56**, while FP16 only encodes **1..30**. The FP16 accumulator was
+therefore saturating or flushing a large fraction of all dot products.
+
+Measured on the 243-cycle canonical stimulus (198 nonzero-eligible NORM calls, 6 zero dot
+products excluded):
+
+| NORM outcome | Old FP16 | New FP32 |
+|---|---:|---:|
+| Normal (correct) | 134 | 192 |
+| Saturated to max | 49 | 0 |
+| Flushed to zero | 9 | 0 |
+| **Incorrect total** | **58/192 = 30.2%** | **0/192 = 0.0%** |
+
+For FP32 the rebias term is `FPACC_EXP_BIAS - BFP_EXP_BIAS = 112`, giving
+`out_exp = blk_exp + 112 + leading_one_index`, which ranges **97..168** against a valid range of
+1..254. Saturation and underflow are therefore structurally impossible at G16/E5/M3, which the
+table above confirms empirically. The exponent-calculation signal needed widening because 168
+does not fit in the signed 8-bit `BFP_BEXP_W`; `FPACC_CALC_EXP_W` (10-bit signed) was added.
+
+Validation performed locally, without EDA tools:
+
+- `input.dat` and `golden.dat` both reproduce bit-exactly when `gen_pattern.py` is re-run.
+- `golden.dat` was cross-checked against an independent exact-float reference
+  (true value = `s * 2^(w_exp + a_exp - 30)`, where `s` is the exact signed integer dot
+  product): **198 cycles, max relative error 7.95e-08**, consistent with the FP32 mantissa
+  resolution of 2^-23 and therefore free of algorithmic error.
+
+Superseded area results. The following were measured on the **FP16-accumulator** RTL at TSMC
+16 nm, 500 MHz, and must be re-measured now that the accumulator is FP32:
+
+| Config | Total cell area | u_fp_acc | u_int_mac |
+|---|---:|---:|---:|
+| G16 / E5 / M3 | 892.58 | 266.92 (29.9%) | 505.08 (56.6%) |
+| G32 / E5 / M3 | 1524.04 | 278.85 (18.3%) | 1019.95 (66.9%) |
+
+Note `u_fp_acc` is nearly constant across G while `u_int_mac` scales linearly, so the FP-Acc
+area share falls as G grows. Part of the small FP16 share is also attributable to the saturation
+defect above: an adder that saturates 30% of the time gives the synthesizer little to optimize
+for. Re-synthesis at FP32 is required before drawing any conclusion about FP-Acc cost, and
+before any comparison against Bucket Getter, whose baseline accumulates in FP32.
 
 Baseline BFP-PE decisions that must be resolved before the baseline is frozen or compared with DEWA:
 
@@ -184,8 +238,10 @@ Baseline BFP-PE decisions that must be resolved before the baseline is frozen or
    experiment **G32/E5/M7**. Do not compare a G16/M3 PE directly against G32/BFP8 PPL results.
 2. Freeze the BFP mantissa encoding and scale convention, then prove that the RTL integer dot
    product and normalization match the notebook fake-BFP definition on shared test vectors.
-3. Freeze accumulator semantics. The RTL currently accumulates in custom FP16, whereas the DEWA
-   functional model uses FP32 partials/accumulation and casts the Linear output to FP16.
+3. Accumulator precision is now aligned: the RTL accumulates in custom FP32, matching the DEWA
+   functional model's FP32 partials/accumulation. Remaining gap: the notebook casts the Linear
+   output to FP16 at the end, whereas the PE exposes the raw FP32 accumulator. Decide where the
+   output cast belongs before freezing.
 4. Decide IEEE behavior for subnormals, rounding, overflow, Inf, and NaN. Current RTL truncates
    mantissas, flushes underflow to zero, and uses an all-ones exponent/mantissa code on overflow;
    this is not yet proven equivalent to PyTorch FP16.
@@ -394,14 +450,17 @@ validation run (see Phase 1).
 - [ ] Add independent cross-check vectors generated from the notebook/PyTorch definition; the
       current Python golden intentionally mirrors the RTL algorithm and proves internal bit-level
       consistency, not equivalence to the software experiment.
-- [x] Run behavioral VCS on the server. User confirmed PASS; the complete log remains server-only.
-- [ ] Freeze FP accumulator precision and rounding/subnormal/overflow behavior before using this
-      PE as the area or energy baseline.
-- [x] Run the synthesis/area flow on the server. User confirmed PASS; reports and implementation
-      artifacts remain server-only.
+- [ ] **Re-run behavioral VCS on the server against the FP32 RTL.** The earlier user-confirmed
+      PASS was for the FP16 accumulator and no longer applies.
+- [x] Freeze FP accumulator precision: custom FP32 (1s/8e/23m, bias 127), truncation, no
+      subnormals, flush-to-zero on underflow, saturation on overflow. Rounding/subnormal
+      equivalence to PyTorch FP16 is still **not** proven.
+- [ ] **Re-run the synthesis/area flow at FP32** and record the new `u_fp_acc` share. The
+      superseded FP16 numbers are kept above for reference only.
 - [ ] Add activity-based `report_power` or an equivalent power flow if it is not already part of
       the server flow; the local `syn90.tcl` only writes timing and area reports.
-- [x] Run the gate-level flow on the server. User confirmed PASS; logs/artifacts remain server-only.
+- [ ] **Re-run the gate-level flow at FP32.** The earlier user-confirmed PASS was for the FP16
+      accumulator and no longer applies.
 - [ ] Record the final server tool versions, numeric configuration, constraints, corner, area,
       timing, and power summary here once the baseline configuration is frozen.
 

@@ -9,7 +9,7 @@
 top_design=BFP_PE
 source_file="file.f"
 TIMESCALE="-timescale=1ns/1ps"
-syn_tcl="syn90.tcl"
+syn_tcl="syn16.tcl"
 syn_log="syn.log"
 
 #======================================================
