@@ -1,0 +1,22 @@
+{
+  "model": "meta-llama/Llama-2-13b-hf",
+  "dataset": "Salesforce/wikitext/wikitext-2-raw-v1",
+  "split": "test",
+  "dtype": "float16",
+  "quantized": false,
+  "attention_implementation": "eager",
+  "context_length": 2048,
+  "stride": 512,
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "cuda": "12.8",
+  "python": "3.12.13",
+  "pytorch": "2.11.0+cu128",
+  "transformers": "5.13.1",
+  "datasets": "4.0.0",
+  "mean_nll": 1.4702272306633857,
+  "perplexity": 4.350223541259766,
+  "evaluated_tokens": 341468,
+  "elapsed_seconds": 280.370668043,
+  "tokens_per_second": 1217.9162762761957,
+  "peak_gpu_memory_gib": 25.62887144088745
+}

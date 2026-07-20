@@ -1,0 +1,47 @@
+#!/bin/sh
+# create_run - recreate this project's folder skeleton (empty files only, no content)
+# Usage: drop this file into an empty folder and run ./create_run
+#        (if permission denied, run: chmod +x create_run)
+set -e
+
+# Directories to create
+DIRS="
+00_TESTBED
+01_RTL
+02_SYN
+03_GATE
+"
+
+# Empty files to create (relative paths)
+FILES="
+00_TESTBED/gen_pattern.py
+00_TESTBED/golden.dat
+00_TESTBED/input.dat
+00_TESTBED/makefile
+00_TESTBED/PATTERN.sv
+00_TESTBED/TESTBED.sv
+01_RTL/01_run
+01_RTL/BFP_PE.sv
+01_RTL/BFP_PKG.sv
+01_RTL/file.f
+01_RTL/FP_ACC.sv
+01_RTL/include.svh
+01_RTL/INT_MAC.sv
+02_SYN/02_run
+02_SYN/file.f
+02_SYN/syn16.tcl
+02_SYN/syn90.tcl
+03_GATE/03_run
+03_GATE/file.f
+"
+
+for d in $DIRS; do
+    mkdir -p "$d"
+done
+
+for f in $FILES; do
+    mkdir -p "$(dirname "$f")"
+    [ -e "$f" ] || touch "$f"
+done
+
+echo "create_run: done."
