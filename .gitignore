@@ -42,3 +42,7 @@ Thumbs.db
 
 # Claude Code session state / worktrees (never commit)
 .claude/
+
+# Local downloads and editor backups
+artifacts/colab-downloads/*.zip
+artifacts/editor-backups/
