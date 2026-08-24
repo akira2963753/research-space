@@ -25,7 +25,6 @@ DVEfiles/
 
 # Design Compiler output
 Netlist/
-Report/
 Work/
 default.svf
 command.log

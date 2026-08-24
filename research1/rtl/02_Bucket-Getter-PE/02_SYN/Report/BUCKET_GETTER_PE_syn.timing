@@ -1,0 +1,159 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : BUCKET_GETTER_PE
+Version: O-2018.06
+Date   : Mon Aug 24 03:58:13 2026
+****************************************
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+  Startpoint: u_pe_core/u_bucket_bank/pending_exp_reg[2]
+              (rising edge-triggered flip-flop clocked by clk)
+  Endpoint: u_pe_core/u_bucket_bank/spill_fp_reg_reg[7]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.50       0.50
+  u_pe_core/u_bucket_bank/pending_exp_reg[2]/CK (DFFRQXL)
+                                                          0.00       0.50 r
+  u_pe_core/u_bucket_bank/pending_exp_reg[2]/Q (DFFRQXL)
+                                                          0.34       0.84 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/i_value_exp[2] (BG_BUCKET_CTRL)
+                                                          0.00       0.84 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U20/Y (NOR2BX2)
+                                                          0.11       0.94 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U21/Y (OAI2B1X1)
+                                                          0.04       0.98 r
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U22/Y (OAI2B1X2)
+                                                          0.06       1.04 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U24/Y (AOI22X2)
+                                                          0.08       1.12 r
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U25/Y (OAI211X2)
+                                                          0.08       1.20 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U27/Y (CLKNAND2X2)
+                                                          0.06       1.26 r
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U13/Y (NAND4X4)
+                                                          0.07       1.33 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U31/Y (NOR2X1)
+                                                          0.09       1.42 r
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U4/Y (INVX1)      0.04       1.46 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U14/Y (OAI22X1)
+                                                          0.07       1.53 r
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/U3/Y (XOR2X3)     0.12       1.65 f
+  u_pe_core/u_bucket_bank/u_bucket_ctrl/o_bucket_ptr[1] (BG_BUCKET_CTRL)
+                                                          0.00       1.65 f
+  u_pe_core/u_bucket_bank/U19/Y (AND2X2)                  0.12       1.77 f
+  u_pe_core/u_bucket_bank/U228/Y (BUFX18)                 0.10       1.87 f
+  u_pe_core/u_bucket_bank/U2172/Y (NAND2XL)               0.05       1.92 r
+  u_pe_core/u_bucket_bank/U2173/Y (NAND4X2)               0.51       2.43 f
+  u_pe_core/u_bucket_bank/U3369/Y (INVX2)                 0.64       3.06 r
+  u_pe_core/u_bucket_bank/U1714/Y (INVXL)                 0.25       3.31 f
+  u_pe_core/u_bucket_bank/U3516/Y (INVX2)                 0.38       3.69 r
+  u_pe_core/u_bucket_bank/U3797/Y (NAND2XL)               0.11       3.80 f
+  u_pe_core/u_bucket_bank/U3798/Y (OAI2BB1XL)             0.08       3.89 r
+  u_pe_core/u_bucket_bank/U3918/Y (OAI21XL)               0.07       3.96 f
+  u_pe_core/u_bucket_bank/U1716/Y (NAND2XL)               0.05       4.01 r
+  u_pe_core/u_bucket_bank/U3919/Y (NAND2XL)               0.05       4.06 f
+  u_pe_core/u_bucket_bank/U3920/Y (AOI21XL)               0.08       4.14 r
+  u_pe_core/u_bucket_bank/U3921/Y (OAI21XL)               0.07       4.21 f
+  u_pe_core/u_bucket_bank/U3923/Y (AOI21XL)               0.09       4.30 r
+  u_pe_core/u_bucket_bank/U3924/Y (OAI21XL)               0.07       4.37 f
+  u_pe_core/u_bucket_bank/U3926/Y (NAND2XL)               0.05       4.42 r
+  u_pe_core/u_bucket_bank/U3927/Y (AOI21XL)               0.06       4.49 f
+  u_pe_core/u_bucket_bank/U712/Y (OAI21XL)                0.08       4.57 r
+  u_pe_core/u_bucket_bank/U711/Y (NAND2XL)                0.06       4.64 f
+  u_pe_core/u_bucket_bank/U716/Y (NAND2XL)                0.04       4.68 r
+  u_pe_core/u_bucket_bank/U715/Y (AOI21XL)                0.06       4.74 f
+  u_pe_core/u_bucket_bank/U714/Y (OAI21XL)                0.08       4.82 r
+  u_pe_core/u_bucket_bank/U713/Y (AOI21XL)                0.08       4.90 f
+  u_pe_core/u_bucket_bank/U720/Y (OAI21XL)                0.08       4.98 r
+  u_pe_core/u_bucket_bank/U719/Y (NAND2XL)                0.07       5.04 f
+  u_pe_core/u_bucket_bank/U718/Y (AOI21XL)                0.08       5.12 r
+  u_pe_core/u_bucket_bank/U717/Y (OAI21XL)                0.07       5.19 f
+  u_pe_core/u_bucket_bank/U115/Y (AOI21XL)                0.09       5.28 r
+  u_pe_core/u_bucket_bank/U340/Y (OAI21XL)                0.07       5.35 f
+  u_pe_core/u_bucket_bank/U114/Y (AOI21XL)                0.08       5.44 r
+  u_pe_core/u_bucket_bank/U723/Y (OAI21XL)                0.07       5.50 f
+  u_pe_core/u_bucket_bank/U722/Y (AOI21XL)                0.09       5.60 r
+  u_pe_core/u_bucket_bank/U721/Y (OAI21XL)                0.07       5.66 f
+  u_pe_core/u_bucket_bank/U727/Y (AOI21XL)                0.09       5.76 r
+  u_pe_core/u_bucket_bank/U726/Y (OAI21XL)                0.07       5.83 f
+  u_pe_core/u_bucket_bank/U725/Y (AOI21XL)                0.08       5.91 r
+  u_pe_core/u_bucket_bank/U724/Y (OAI21XL)                0.07       5.99 f
+  u_pe_core/u_bucket_bank/U3937/Y (AOI21X1)               0.07       6.06 r
+  u_pe_core/u_bucket_bank/U327/Y (OAI21XL)                0.07       6.13 f
+  u_pe_core/u_bucket_bank/U3939/Y (AOI21X1)               0.08       6.21 r
+  u_pe_core/u_bucket_bank/U325/Y (OAI21XL)                0.07       6.27 f
+  u_pe_core/u_bucket_bank/U729/Y (AOI21XL)                0.09       6.36 r
+  u_pe_core/u_bucket_bank/U728/Y (OAI21XL)                0.07       6.43 f
+  u_pe_core/u_bucket_bank/U3942/Y (AOI21X1)               0.08       6.51 r
+  u_pe_core/u_bucket_bank/U3943/Y (OAI21X1)               0.06       6.57 f
+  u_pe_core/u_bucket_bank/U3944/Y (AOI21X1)               0.07       6.65 r
+  u_pe_core/u_bucket_bank/U104/Y (OAI21XL)                0.07       6.71 f
+  u_pe_core/u_bucket_bank/U732/Y (NAND2XL)                0.05       6.76 r
+  u_pe_core/u_bucket_bank/U731/Y (AOI21XL)                0.07       6.83 f
+  u_pe_core/u_bucket_bank/U730/Y (OAI21XL)                0.09       6.92 r
+  u_pe_core/u_bucket_bank/U3947/Y (AOI21X1)               0.07       6.99 f
+  u_pe_core/u_bucket_bank/U3949/Y (OAI21X1)               0.07       7.06 r
+  u_pe_core/u_bucket_bank/U3950/Y (AOI21X1)               0.07       7.13 f
+  u_pe_core/u_bucket_bank/U736/Y (OAI21XL)                0.08       7.21 r
+  u_pe_core/u_bucket_bank/U735/Y (AOI21XL)                0.08       7.29 f
+  u_pe_core/u_bucket_bank/U734/Y (OAI21XL)                0.09       7.38 r
+  u_pe_core/u_bucket_bank/U3952/Y (AOI21X1)               0.07       7.45 f
+  u_pe_core/u_bucket_bank/U3954/Y (OAI21X1)               0.07       7.52 r
+  u_pe_core/u_bucket_bank/U3955/Y (AOI21X1)               0.06       7.59 f
+  u_pe_core/u_bucket_bank/U773/Y (OAI21XL)                0.08       7.67 r
+  u_pe_core/u_bucket_bank/U772/Y (AOI21XL)                0.08       7.75 f
+  u_pe_core/u_bucket_bank/U771/Y (OAI21XL)                0.09       7.84 r
+  u_pe_core/u_bucket_bank/U3958/Y (AOI21X1)               0.07       7.91 f
+  u_pe_core/u_bucket_bank/U3960/Y (OAI21X1)               0.07       7.99 r
+  u_pe_core/u_bucket_bank/U3961/Y (AOI21X1)               0.06       8.05 f
+  u_pe_core/u_bucket_bank/U3963/Y (OAI21XL)               0.08       8.13 r
+  u_pe_core/u_bucket_bank/U974/Y (AOI21XL)                0.08       8.21 f
+  u_pe_core/u_bucket_bank/U973/Y (OAI21XL)                0.09       8.30 r
+  u_pe_core/u_bucket_bank/U972/Y (NAND2XL)                0.07       8.37 f
+  u_pe_core/u_bucket_bank/U3965/Y (AOI21X1)               0.09       8.46 r
+  u_pe_core/u_bucket_bank/U3966/Y (OAI2B1X1)              0.07       8.52 f
+  u_pe_core/u_bucket_bank/U3967/Y (AOI21X1)               0.09       8.61 r
+  u_pe_core/u_bucket_bank/U3968/Y (OAI21X1)               0.08       8.69 f
+  u_pe_core/u_bucket_bank/U1185/Y (NAND2XL)               0.06       8.75 r
+  u_pe_core/u_bucket_bank/U1184/Y (NAND2X2)               0.24       8.99 f
+  u_pe_core/u_bucket_bank/U1160/Y (NOR2BXL)               0.40       9.39 r
+  u_pe_core/u_bucket_bank/U2016/Y (INVXL)                 0.22       9.61 f
+  u_pe_core/u_bucket_bank/U10754/Y (OAI21XL)              0.16       9.77 r
+  u_pe_core/u_bucket_bank/U10755/Y (AOI22XL)              0.08       9.85 f
+  u_pe_core/u_bucket_bank/U10759/Y (OAI211XL)             0.07       9.91 r
+  u_pe_core/u_bucket_bank/U10760/Y (AOI21XL)              0.05       9.97 f
+  u_pe_core/u_bucket_bank/U10761/Y (OAI211XL)             0.08      10.04 r
+  u_pe_core/u_bucket_bank/U10762/Y (AOI21XL)              0.05      10.09 f
+  u_pe_core/u_bucket_bank/U1190/Y (NOR2XL)                0.07      10.17 r
+  u_pe_core/u_bucket_bank/U710/Y (AOI21XL)                0.04      10.21 f
+  u_pe_core/u_bucket_bank/U10788/Y (NAND3XL)              0.06      10.27 r
+  u_pe_core/u_bucket_bank/spill_fp_reg_reg[7]/D (DFFRQXL)
+                                                          0.00      10.27 r
+  data arrival time                                                 10.27
+
+  clock clk (rise edge)                                  10.00      10.00
+  clock network delay (ideal)                             0.50      10.50
+  clock uncertainty                                      -0.10      10.40
+  u_pe_core/u_bucket_bank/spill_fp_reg_reg[7]/CK (DFFRQXL)
+                                                          0.00      10.40 r
+  library setup time                                     -0.13      10.27
+  data required time                                                10.27
+  --------------------------------------------------------------------------
+  data required time                                                10.27
+  data arrival time                                                -10.27
+  --------------------------------------------------------------------------
+  slack (MET)                                                        0.00
+
+
+1

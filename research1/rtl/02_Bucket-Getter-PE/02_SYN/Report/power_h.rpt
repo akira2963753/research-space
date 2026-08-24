@@ -1,0 +1,40 @@
+ 
+****************************************
+Report : power
+        -hier
+        -analysis_effort low
+Design : BUCKET_GETTER_PE
+Version: O-2018.06
+Date   : Mon Aug 24 04:12:49 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 0.9  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+--------------------------------------------------------------------------------
+                                       Switch   Int      Leak     Total
+Hierarchy                              Power    Power    Power    Power    %
+--------------------------------------------------------------------------------
+BUCKET_GETTER_PE                          0.187    1.057 1.54e+08    1.398 100.0
+  u_fp_acc (BG_FP_ACC)                 2.82e-04 3.62e-04 1.20e+07 1.26e-02   0.9
+  u_pe_core (BG_PE_CORE)                  0.187    1.057 1.42e+08    1.386  99.1
+    u_bucket_bank (BG_BUCKET_BANK)        0.132    0.761 1.19e+08    1.012  72.4
+      u_bucket_ctrl (BG_BUCKET_CTRL)   1.15e-04 1.08e-04 6.69e+05 8.92e-04   0.1
+    u_int_mac (BG_INT_MAC)             3.68e-02    0.169 1.67e+07    0.222  15.9
+1

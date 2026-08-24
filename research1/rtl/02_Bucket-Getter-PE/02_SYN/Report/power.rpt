@@ -1,0 +1,50 @@
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : BUCKET_GETTER_PE
+Version: O-2018.06
+Date   : Mon Aug 24 04:12:31 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 0.9  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+  Cell Internal Power  =   1.0571 mW   (85%)
+  Net Switching Power  = 187.3463 uW   (15%)
+                         ---------
+Total Dynamic Power    =   1.2445 mW  (100%)
+
+Cell Leakage Power     = 153.8522 uW
+
+
+                 Internal         Switching           Leakage            Total
+Power Group      Power            Power               Power              Power   (   %    )  Attrs
+--------------------------------------------------------------------------------------------------
+io_pad             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
+clock_network      0.0000            0.0000            0.0000            0.0000  (   0.00%)
+register           0.7442        8.4897e-03        2.1741e+07            0.7744  (  55.38%)
+sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
+combinational      0.3129            0.1789        1.3211e+08            0.6239  (  44.62%)
+--------------------------------------------------------------------------------------------------
+Total              1.0571 mW         0.1873 mW     1.5385e+08 pW         1.3983 mW
+1
