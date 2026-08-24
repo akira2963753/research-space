@@ -1,13 +1,17 @@
 #======================================================
 #         Design Flow MakeFile (Author: Marco)
 #======================================================
-.PHONY: vcs_rtl vcs_gate
+.PHONY: vcs_rtl vcs_gate syn
 
 #======================================================
-#                      Configuration
+#              Set your desired file names
 #======================================================
-source_file="file_trace_g16_bfp4.f"
+top_design=BUCKET_GETTER_PE
+rtl_source_file="file_trace_g16_bfp4.f"
+gate_source_file="file.f"
 TIMESCALE="-timescale=1ns/1ps"
+syn_tcl="syn90.tcl"
+syn_log="syn.log"
 
 #======================================================
 #                          VCS
@@ -18,7 +22,7 @@ VCS_RTL = vcs ${TIMESCALE} \
 	-debug_access+all \
 	-R \
 	+v2k \
-	-f ${source_file} \
+	-f ${rtl_source_file} \
 	+define+SVA \
 	+notimingchecks
 
@@ -28,13 +32,21 @@ VCS_GATE = vcs ${TIMESCALE} \
 	-debug_access+all \
 	-R \
 	+v2k \
-	-f ${source_file} \
+	-f ${gate_source_file} \
 	+neg_tchk \
 	+define+SVA \
 	+define+GATE
+
+#======================================================
+#                   Design Compiler
+#======================================================
+DC_shell = dc_shell -f ${syn_tcl} | tee ${syn_log}
 
 vcs_rtl:
 	${VCS_RTL}
 
 vcs_gate:
 	${VCS_GATE}
+
+syn:
+	${DC_shell}

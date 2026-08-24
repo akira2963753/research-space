@@ -87,11 +87,9 @@ module TESTBED;
         end
     `endif
 
-    `ifndef IVERILOG
-        initial begin
-            $fsdbDumpfile("TESTBED.fsdb");
-            $fsdbDumpvars(0, TESTBED, "+mda");
-        end
-    `endif
+    initial begin
+        $fsdbDumpfile("BUCKET_GETTER_PE.fsdb");
+        $fsdbDumpvars(0, u_dut, "+mda");
+    end
 
 endmodule

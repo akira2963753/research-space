@@ -78,8 +78,6 @@ module TESTBED;
             $display("  [INFO] GATE-LEVEL SIMULATION START  ");
             $display("======================================");
             $sdf_annotate("../02_SYN/Netlist/BFP_PE_syn.sdf", u_dut, , , "maximum");
-            $dumpfile("BFP_PE.vcd");
-            $dumpvars(0, TESTBED.u_dut);
         end
     `else
         initial begin
@@ -92,11 +90,9 @@ module TESTBED;
     //=============================================================
     //                         FSDB Dump
     //=============================================================
-    `ifndef IVERILOG
-        initial begin
-            $fsdbDumpfile("TESTBED.fsdb");
-            $fsdbDumpvars(0, TESTBED, "+mda");
-        end
-    `endif
+    initial begin
+        $fsdbDumpfile("BFP_PE.fsdb");
+        $fsdbDumpvars(0, u_dut, "+mda");
+    end
 
 endmodule

@@ -117,12 +117,10 @@ module PATTERN (
         drive_reset();
 
         fin = $fopen("../00_TESTBED/input.dat", "r");
-        if(fin == 0)
-            $fatal(1, "[ERROR]: cannot open input.dat");
+        if(fin == 0) $fatal(1, "[ERROR]: cannot open input.dat");
 
         fout = $fopen("../00_TESTBED/output.dat", "w");
-        if(fout == 0)
-            $fatal(1, "[ERROR]: cannot open output.dat");
+        if(fout == 0) $fatal(1, "[ERROR]: cannot open output.dat");
 
         scan_count = $fscanf(
             fin,
@@ -164,8 +162,7 @@ module PATTERN (
             );
         end
 
-        if(!$feof(fin))
-            $fatal(1, "[ERROR]: malformed input.dat at cycle %0d", cycle_count);
+        if(!$feof(fin)) $fatal(1, "[ERROR]: malformed input.dat at cycle %0d", cycle_count);
 
         $fclose(fin);
         $fclose(fout);
