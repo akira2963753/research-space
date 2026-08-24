@@ -15,7 +15,7 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, Normalize
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 
@@ -283,18 +283,64 @@ def configure_ieee_style() -> None:
             "ytick.major.width": 0.8,
             "xtick.major.size": 3,
             "ytick.major.size": 3,
+            "mathtext.fontset": "stix",
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
             "savefig.facecolor": "white",
         }
     )
 
 
 def save_figure(fig: plt.Figure, output_dir: Path, stem: str) -> None:
-    """Save a 600-DPI PNG figure."""
+    """Save paired 600-DPI PNG and true-vector PDF figure outputs."""
     output_dir.mkdir(parents=True, exist_ok=True)
     png_path = output_dir / f"{stem}.png"
+    pdf_path = output_dir / f"{stem}.pdf"
     fig.savefig(png_path, dpi=600, bbox_inches="tight")
+    fig.savefig(pdf_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {png_path}")
+    print(f"Saved: {pdf_path}")
+
+
+def add_vector_colorbar(
+    fig: plt.Figure,
+    *,
+    cmap: LinearSegmentedColormap,
+    norm: BoundaryNorm | Normalize,
+    vmin: int,
+    vmax: int,
+    label: str,
+    ticks: np.ndarray | None = None,
+) -> None:
+    """Draw a colorbar from vector rectangles instead of a raster image."""
+    axis = fig.add_axes((0.815, 0.19, 0.024, 0.24))
+    steps = 128
+    boundaries = np.linspace(vmin, vmax, steps + 1, dtype=np.float64)
+    for low, high in zip(boundaries[:-1], boundaries[1:]):
+        color = cmap(norm(0.5 * (low + high)))
+        axis.add_patch(
+            Rectangle(
+                (0.0, low),
+                1.0,
+                high - low,
+                facecolor=color,
+                edgecolor="none",
+                linewidth=0.0,
+            )
+        )
+
+    axis.set_xlim(0.0, 1.0)
+    axis.set_ylim(vmin, vmax)
+    axis.set_xticks([])
+    if ticks is None:
+        axis.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=6))
+    else:
+        axis.set_yticks(ticks)
+    axis.yaxis.set_ticks_position("right")
+    axis.yaxis.set_label_position("right")
+    axis.tick_params(axis="y", direction="out", length=2)
+    axis.set_ylabel(label)
 
 
 def plot_coverage_widths(
@@ -382,17 +428,18 @@ def plot_w95_heatmap(
     )
     cmap.set_bad("white")
     norm = BoundaryNorm(boundaries, cmap.N)
-    images = []
 
     for ax, result in zip(flat_axes, results):
-        image = ax.imshow(
+        ax.pcolormesh(
+            np.arange(matrices[result.bits].shape[1] + 1, dtype=np.float64) - 0.5,
+            np.arange(matrices[result.bits].shape[0] + 1, dtype=np.float64) - 0.5,
             matrices[result.bits],
-            aspect="auto",
-            interpolation="nearest",
+            shading="flat",
             cmap=cmap,
             norm=norm,
+            edgecolors="none",
         )
-        images.append(image)
+        ax.set_ylim(len(LAYER_TYPES) - 0.5, -0.5)
         ax.set_title(f"BFP{result.bits}", pad=6)
         ax.set_xticks([0, 7, 15, 23, 31])
         ax.set_yticks(np.arange(len(LAYER_TYPES)), LAYER_TYPE_LABELS)
@@ -405,14 +452,15 @@ def plot_w95_heatmap(
     fig.suptitle("Per-Block W95 Partial-sum Exponent Span", y=0.985)
     fig.supxlabel("Transformer Block Index", y=0.04)
     fig.supylabel("Linear Projection", x=0.015)
-    colorbar_axis = fig.add_axes((0.815, 0.19, 0.024, 0.24))
-    colorbar = fig.colorbar(
-        images[0],
-        cax=colorbar_axis,
-        boundaries=boundaries,
+    add_vector_colorbar(
+        fig,
+        cmap=cmap,
+        norm=norm,
+        vmin=vmin,
+        vmax=vmax,
         ticks=np.arange(vmin, vmax + 1),
+        label="W95 Span (Exponent Steps)",
     )
-    colorbar.set_label("W95 Span (Exponent Steps)")
     fig.subplots_adjust(left=0.18, right=0.97, bottom=0.13, top=0.90, wspace=0.18, hspace=0.34)
     save_figure(fig, output_dir, "per_layer_w95_heatmap")
 
@@ -442,17 +490,18 @@ def plot_full_span_heatmap(
     )
     cmap.set_bad("white")
     norm = Normalize(vmin=vmin, vmax=vmax)
-    images = []
 
     for ax, result in zip(flat_axes, results):
-        image = ax.imshow(
+        ax.pcolormesh(
+            np.arange(matrices[result.bits].shape[1] + 1, dtype=np.float64) - 0.5,
+            np.arange(matrices[result.bits].shape[0] + 1, dtype=np.float64) - 0.5,
             matrices[result.bits],
-            aspect="auto",
-            interpolation="nearest",
+            shading="flat",
             cmap=cmap,
             norm=norm,
+            edgecolors="none",
         )
-        images.append(image)
+        ax.set_ylim(len(LAYER_TYPES) - 0.5, -0.5)
         ax.set_title(f"BFP{result.bits}", pad=6)
         ax.set_xticks([0, 7, 15, 23, 31])
         ax.set_yticks(np.arange(len(LAYER_TYPES)), LAYER_TYPE_LABELS)
@@ -465,11 +514,14 @@ def plot_full_span_heatmap(
     fig.suptitle("Per-Block Full Partial-sum Exponent Span", y=0.985)
     fig.supxlabel("Transformer Block Index", y=0.04)
     fig.supylabel("Linear Projection", x=0.015)
-    colorbar_axis = fig.add_axes((0.815, 0.19, 0.024, 0.24))
-    colorbar = fig.colorbar(images[0], cax=colorbar_axis)
-    colorbar.locator = MaxNLocator(integer=True, nbins=6)
-    colorbar.update_ticks()
-    colorbar.set_label("Full Span (Exponent Steps)")
+    add_vector_colorbar(
+        fig,
+        cmap=cmap,
+        norm=norm,
+        vmin=vmin,
+        vmax=vmax,
+        label="Full Span (Exponent Steps)",
+    )
     fig.subplots_adjust(left=0.18, right=0.97, bottom=0.13, top=0.90, wspace=0.18, hspace=0.34)
     save_figure(fig, output_dir, "per_layer_full_span_heatmap")
 
@@ -608,7 +660,7 @@ def main() -> None:
         "--output-dir",
         type=Path,
         default=None,
-        help="Directory for generated PNG figures.",
+        help="Directory for generated PNG and vector-PDF figures.",
     )
     parser.add_argument("--group-size", type=int, default=32)
     parser.add_argument(

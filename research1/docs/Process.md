@@ -1,6 +1,6 @@
 # Research Process
 
-Last updated: 2026-07-26
+Last updated: 2026-08-20
 
 ## 1. Purpose and Authority
 
@@ -45,7 +45,8 @@ research1/
 |   |-- 02_outlier-profile/
 |   `-- 03_ppl-comparison/
 `-- rtl/
-    `-- 01_Baseline-BFP-PE/
+    |-- 01_Baseline-BFP-PE/
+    `-- 02_Bucket-Getter-PE/
 ```
 
 Each experiment directory keeps its producer Notebook and result JSON files together. A JSON
@@ -298,6 +299,7 @@ fallback are not yet modeled.
 | Fixed-width INT-Acc model | Not implemented | Required for real FP-ACC fallback activity |
 | Decode profiler | Not implemented | Existing activity is prefill-like only |
 | DEWA RTL | Not implemented | Must follow a frozen baseline RTL contract |
+| Bucket Getter RTL prototype | Implemented, locally elaborated | Independent paper reconstruction; no bit-exact reference, VCS, or synthesis result yet |
 | FP32 RTL simulation/synthesis/gate rerun | Required | No valid local EDA result for the current source |
 
 ## 7. PPL Results
@@ -606,10 +608,22 @@ Primary producer:
 research1/plot/03_ppl-comparison/plot_ppl_comparison.py
 ```
 
-Asymmetric replacement-threshold producer:
+Asymmetric replacement-threshold producer (archived conditional exception-skip):
 
 ```text
 research1/plot/03_ppl-comparison/plot_asymmetric_treplace.py
+```
+
+Direct-FP-ACC `T_skip = 9` producer:
+
+```text
+research1/plot/03_ppl-comparison/plot_hybrid_asymmetric_tskip9_ppl.py
+```
+
+Selected `(T_skip, T_replace)` gallery:
+
+```text
+research1/plot/03_ppl-comparison/plot_hybrid_tskip_treplace_ppl.py
 ```
 
 Outputs:
@@ -617,15 +631,17 @@ Outputs:
 ```text
 research1/plot/03_ppl-comparison/figures/g16/ppl_delta_comparison.png
 research1/plot/03_ppl-comparison/figures/g16/symmetric_asymmetric_treplace_ppl.png
+research1/plot/03_ppl-comparison/figures/g16/hybrid_asymmetric_tskip9_delta_ppl.png
+research1/plot/03_ppl-comparison/figures/g16/hybrid_tskip_treplace_delta_ppl.png
 ```
 
 The plot compares Vanilla BFP, BiE, Activation BiE, and Activation BiE Top-2 against the FP16
 baseline. The Top-2 series currently contains only BFP4/BiE4. The figure remains provisional
 until the Vanilla BFP LM Head scope is aligned.
 
-The current asymmetric figure still visualizes the archived conditional exception-skip results.
-It must be regenerated before publication to show the complete direct-FP-ACC
-`T_skip = 9`, `T_replace = 8...2` sweep.
+The `(T_skip, T_replace)` gallery is `(8, 8)`, then `(9, 9)` through `(9, 2)`, then `(10, 10)`.
+Equal-threshold points come from the symmetric JSON files; `(9, 8)` through `(9, 2)` come from
+the direct exception FP-ACC sweep. The figure labels only `(T_skip, T_replace)`.
 
 ## 11. Baseline BFP-PE RTL
 
@@ -781,7 +797,9 @@ area improvement.
 - Add cross-check vectors derived independently from the PyTorch fake-BFP definition.
 - Decide the exact mantissa scale, rounding, subnormal, overflow, Inf, and NaN contracts.
 - Decide where FP32-to-FP16 output conversion occurs.
-- Add or explicitly waive a valid/clock-enable interface.
+- The baseline PE now uses independent `acc_clear`, `weight_load`, and `in_valid` controls.
+  `in_valid` accumulates with the currently registered weight; a same-cycle `weight_load`
+  becomes visible on the following cycle.
 
 ### Priority 3: Implement the Fixed-Width INT-Acc Model
 

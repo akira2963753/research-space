@@ -1,0 +1,27 @@
+{
+  "trace_format": "baseline_bfp_pe_cycle_input_v2",
+  "total_cycles": 176384,
+  "dot_product_count": 256,
+  "report_relative_tolerance": 1e-06,
+  "bucketgetter_config": {
+    "bucket_count": 4,
+    "bucket_width": 128,
+    "exponent_levels_per_bucket": 4
+  },
+  "baseline": {
+    "exact_final_matches": 256,
+    "zero_error_final_results": 256,
+    "max_final_relative_error": 0.0,
+    "max_cycle_relative_error": 0.0
+  },
+  "bucketgetter": {
+    "bit_exact_matches_vs_baseline": 256,
+    "zero_error_final_results_vs_reference": 256,
+    "within_reporting_tolerance": 256,
+    "max_absolute_error": 0.0,
+    "max_relative_error": 0.0,
+    "mean_relative_error": 0.0,
+    "median_relative_error": 0.0,
+    "p95_relative_error": 0.0
+  }
+}

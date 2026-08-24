@@ -5,130 +5,183 @@
 * Project:      Research for Block Floating Point Processing Element
 * Module:       PATTERN
 * Author:       Marco <harry2963753@gmail.com>
-* Student ID:   M11407439
-* Tool:         VCS & Verdi
 *
 ******************************************************************************/
-`include "include.svh"
+`include "include.vh"
 
-`define CLK_PERIOD 10
-`define TIMEOUT 1000000
-
-module PATTERN(
-    // clock / reset (driven by PATTERN)
+module PATTERN (
     output logic clk,
     output logic rst_n,
-    // DUT inputs (driven by PATTERN)
-    output logic preload,
+    output logic acc_clear,
+    output logic weight_load,
+    output logic in_valid,
     output logic [`BFP_SIGN_BW-1:0] w_sign_b,
     output logic [`BFP_SIGN_BW-1:0] a_sign_b,
     output logic [`BFP_EXP_W-1:0] w_exp,
     output logic [`BFP_EXP_W-1:0] a_exp,
     output logic [`BFP_MAN_BW-1:0] w_man_b,
     output logic [`BFP_MAN_BW-1:0] a_man_b,
-    // DUT outputs (observed by PATTERN)
-    input o_sign,
-    input [`FPACC_EXP_W-1:0] o_exp,
-    input [`FPACC_MAN_W-1:0] o_man
+    input logic o_sign,
+    input logic [`FPACC_EXP_W-1:0] o_exp,
+    input logic [`FPACC_MAN_W-1:0] o_man
 );
 
-    //=============================================================
-    // ----------------------- Clock Gen --------------------------
-    //=============================================================
-    initial clk = 0;
-    always #(`CLK_PERIOD/2.0) clk = ~clk;
+    localparam integer CLK_PERIOD = 10;
+    localparam integer TIMEOUT = 10_000_000;
 
     //=============================================================
-    // ------------------- File / Loop State ----------------------
+    //                       Clock Generation
     //=============================================================
-    integer fin, fgold, r, rg, idx;
-    logic pre_i;
-    logic [`BFP_SIGN_BW-1:0] ws_i, as_i;
-    logic [`BFP_EXP_W-1:0] we_i, ae_i;
-    logic [`BFP_MAN_BW-1:0] wm_i, am_i;
-    logic [`FPACC_W-1:0] gold_i;
+    initial clk = 1'b0;
+    always #(CLK_PERIOD / 2.0) clk = ~clk;
 
     //=============================================================
-    // ------------------------ Reset Task ------------------------
+    //                     File and Loop State
     //=============================================================
-    task automatic reset_dut();
-        rst_n = 1;
-        preload = 0;
-        w_sign_b = 0;
-        a_sign_b = 0;
-        w_exp = 0;
-        a_exp = 0;
-        w_man_b = 0;
-        a_man_b = 0;
-        @(negedge clk) rst_n = 0;
-        @(negedge clk) rst_n = 1;
+    integer fin;
+    integer fout;
+    integer scan_count;
+    integer cycle_count;
+    logic acc_clear_i;
+    logic weight_load_i;
+    logic in_valid_i;
+    logic [`BFP_SIGN_BW-1:0] w_sign_i;
+    logic [`BFP_SIGN_BW-1:0] a_sign_i;
+    logic [`BFP_EXP_W-1:0] w_exp_i;
+    logic [`BFP_EXP_W-1:0] a_exp_i;
+    logic [`BFP_MAN_BW-1:0] w_man_i;
+    logic [`BFP_MAN_BW-1:0] a_man_i;
+
+    //=============================================================
+    //                         Reset Task
+    //=============================================================
+    task automatic drive_reset();
+        acc_clear = 1'b0;
+        weight_load = 1'b0;
+        in_valid = 1'b0;
+        w_sign_b = '0;
+        a_sign_b = '0;
+        w_exp = '0;
+        a_exp = '0;
+        w_man_b = '0;
+        a_man_b = '0;
+
+        rst_n = 1'b1;
+        force clk = 1'b0;
+        #20 rst_n = 1'b0;
+        #20 rst_n = 1'b1;
+        release clk;
+        @(negedge clk);
     endtask
 
     //=============================================================
-    // ------------------- Drive & Check Task ---------------------
+    //                      Cycle Driver Task
     //=============================================================
-    // Stimulus is launched on negedge (gate-safe). The FP accumulator is
-    // registered, so the expected output is sampled just after the following
-    // posedge, where o == acc_reg for this cycle.
-    task automatic drive_and_check(
-        input pre,
-        input [`BFP_SIGN_BW-1:0] ws,
-        input [`BFP_EXP_W-1:0] we,
-        input [`BFP_MAN_BW-1:0] wm,
-        input [`BFP_SIGN_BW-1:0] as,
-        input [`BFP_EXP_W-1:0] ae,
-        input [`BFP_MAN_BW-1:0] am,
-        input [`FPACC_W-1:0] gold
+    task automatic drive_cycle(
+        input logic clear,
+        input logic load,
+        input logic valid,
+        input logic [`BFP_SIGN_BW-1:0] weight_sign,
+        input logic [`BFP_EXP_W-1:0] weight_exp,
+        input logic [`BFP_MAN_BW-1:0] weight_man,
+        input logic [`BFP_SIGN_BW-1:0] activation_sign,
+        input logic [`BFP_EXP_W-1:0] activation_exp,
+        input logic [`BFP_MAN_BW-1:0] activation_man
     );
-        @(negedge clk);
-        preload = pre;
-        w_sign_b = ws;
-        w_exp = we;
-        w_man_b = wm;
-        a_sign_b = as;
-        a_exp = ae;
-        a_man_b = am;
+        acc_clear = clear;
+        weight_load = load;
+        in_valid = valid;
+        w_sign_b = weight_sign;
+        w_exp = weight_exp;
+        w_man_b = weight_man;
+        a_sign_b = activation_sign;
+        a_exp = activation_exp;
+        a_man_b = activation_man;
+
         @(posedge clk);
         #1;
-        if ({o_sign, o_exp, o_man} !== gold) begin
-            $display("[ERROR] cycle %0d : 32-bit DUT=%08h  golden=%08h  (preload=%b)",
-                     idx, {o_sign, o_exp, o_man}, gold, pre);
-            $fatal(1, "[ERROR] : output mismatch at cycle %0d", idx);
-        end
-        idx = idx + 1;
+        if((^{o_sign, o_exp, o_man}) === 1'bx)
+            $fatal(1, "[ERROR]: unknown DUT output at cycle %0d", cycle_count);
+        $fwrite(fout, "%08h\n", {o_sign, o_exp, o_man});
+        cycle_count++;
+        @(negedge clk);
     endtask
 
     //=============================================================
-    // -------------------------- Main ----------------------------
+    //                           Main
     //=============================================================
     initial begin
-        reset_dut();
+        fin = 0;
+        fout = 0;
+        cycle_count = 0;
+        drive_reset();
+
         fin = $fopen("../00_TESTBED/input.dat", "r");
-        fgold = $fopen("../00_TESTBED/golden.dat", "r");
-        if (fin == 0 || fgold == 0) $fatal(1, "[ERROR] : cannot open input.dat / golden.dat");
-        idx = 0;
-        forever begin
-            r = $fscanf(fin, "%h %h %h %h %h %h %h",
-                        pre_i, ws_i, we_i, wm_i, as_i, ae_i, am_i);
-            if (r != 7) break;
-            rg = $fscanf(fgold, "%8h", gold_i);
-            if (rg != 1) $fatal(1, "[ERROR] : golden.dat shorter than input.dat");
-            drive_and_check(pre_i, ws_i, we_i, wm_i, as_i, ae_i, am_i, gold_i);
+        if(fin == 0)
+            $fatal(1, "[ERROR]: cannot open input.dat");
+
+        fout = $fopen("../00_TESTBED/output.dat", "w");
+        if(fout == 0)
+            $fatal(1, "[ERROR]: cannot open output.dat");
+
+        scan_count = $fscanf(
+            fin,
+            "%h %h %h %h %h %h %h %h %h",
+            acc_clear_i,
+            weight_load_i,
+            in_valid_i,
+            w_sign_i,
+            w_exp_i,
+            w_man_i,
+            a_sign_i,
+            a_exp_i,
+            a_man_i
+        );
+        while(scan_count == 9) begin
+            drive_cycle(
+                acc_clear_i,
+                weight_load_i,
+                in_valid_i,
+                w_sign_i,
+                w_exp_i,
+                w_man_i,
+                a_sign_i,
+                a_exp_i,
+                a_man_i
+            );
+            scan_count = $fscanf(
+                fin,
+                "%h %h %h %h %h %h %h %h %h",
+                acc_clear_i,
+                weight_load_i,
+                in_valid_i,
+                w_sign_i,
+                w_exp_i,
+                w_man_i,
+                a_sign_i,
+                a_exp_i,
+                a_man_i
+            );
         end
+
+        if(!$feof(fin))
+            $fatal(1, "[ERROR]: malformed input.dat at cycle %0d", cycle_count);
+
         $fclose(fin);
-        $fclose(fgold);
+        $fclose(fout);
         $display("=========================================================");
-        $display("  BFP-PE PATTERN PASS : %0d 32-bit outputs verified, 0 errors", idx);
+        $display("  BFP-PE TRACE COMPLETE: %0d cycles written", cycle_count);
+        $display("  Output: ../00_TESTBED/output.dat");
         $display("=========================================================");
         $finish;
     end
 
     //=============================================================
-    // ------------------------ Watchdog --------------------------
+    //                         Watchdog
     //=============================================================
     initial begin
-        #(`TIMEOUT);
-        $fatal(1, "[ERROR] : simulation timeout");
+        #(TIMEOUT);
+        $fatal(1, "[ERROR]: simulation timeout");
     end
 
 endmodule

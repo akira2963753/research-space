@@ -7,12 +7,14 @@
 * Author:       Marco <harry2963753@gmail.com>
 *
 ******************************************************************************/
-`include "include.svh"
+`include "include.vh"
 
-module BFP_PE(
+module BFP_PE (
     input clk,
     input rst_n,
-    input preload, // latch weights + clear accumulator
+    input acc_clear,
+    input weight_load,
+    input in_valid,
     input [`BFP_SIGN_BW-1:0] w_sign_b,
     input [`BFP_SIGN_BW-1:0] a_sign_b,
     input [`BFP_EXP_W-1:0] w_exp,
@@ -24,39 +26,39 @@ module BFP_PE(
     output [`FPACC_MAN_W-1:0] o_man
 );
 
-    // -----------------------------------------------------------------------
-    // Weight-Stationary registers : loaded on preload, held afterwards
-    // -----------------------------------------------------------------------
+    //==========================================================================
+    // Weight-Stationary Registers
+    //==========================================================================
     logic [`BFP_SIGN_BW-1:0] w_sign_reg;
     logic [`BFP_EXP_W-1:0] w_exp_reg;
     logic [`BFP_MAN_BW-1:0] w_man_reg;
 
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+        if(!rst_n) begin
             w_sign_reg <= '0;
             w_exp_reg <= '0;
             w_man_reg <= '0;
         end
-        else if (preload) begin
+        else if(weight_load) begin
             w_sign_reg <= w_sign_b;
             w_exp_reg <= w_exp;
             w_man_reg <= w_man_b;
         end
     end
 
-    // -----------------------------------------------------------------------
-    // Block exponent adder (product exponent, biased by BFP_EXP_BIAS)
-    // -----------------------------------------------------------------------
+    //==========================================================================
+    // Block Exponent Adder
+    //==========================================================================
     logic signed [`BFP_BEXP_W-1:0] blk_exp;
     assign blk_exp = $signed({1'b0, w_exp_reg}) + $signed({1'b0, a_exp}) - `BFP_EXP_BIAS;
 
-    // -----------------------------------------------------------------------
-    // Integer MAC : g-lane mantissa multiply + signed adder tree
-    // -----------------------------------------------------------------------
+    //==========================================================================
+    // Integer MAC
+    //==========================================================================
     logic dp_sign;
     logic [`BFP_MAG_W-1:0] dp_mag;
 
-    INT_MAC u_int_mac(
+    INT_MAC u_int_mac (
         .w_sign_b(w_sign_reg),
         .a_sign_b(a_sign_b),
         .w_man_b(w_man_reg),
@@ -65,13 +67,14 @@ module BFP_PE(
         .dp_mag(dp_mag)
     );
 
-    // -----------------------------------------------------------------------
-    // FP-Acc : Norm -> Align -> Addition -> FXP2FP + FP accumulator
-    // -----------------------------------------------------------------------
-    FP_ACC u_fp_acc(
+    //==========================================================================
+    // FP Accumulator
+    //==========================================================================
+    FP_ACC u_fp_acc (
         .clk(clk),
         .rst_n(rst_n),
-        .preload(preload),
+        .acc_clear(acc_clear),
+        .in_valid(in_valid),
         .dp_sign(dp_sign),
         .dp_mag(dp_mag),
         .blk_exp(blk_exp),

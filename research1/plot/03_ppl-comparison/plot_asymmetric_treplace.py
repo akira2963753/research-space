@@ -107,6 +107,12 @@ def discover_replace_sweep(
         if int(config.get("max_outliers_per_block", -1)) != 2:
             continue
 
+        # The newer direct-FP-ACC sweep intentionally removed the legacy
+        # exception threshold.  It belongs to a different experiment and must
+        # not be parsed as part of this Tskip=Texc=8 comparison.
+        if "exception_threshold_bits" not in dewa_config:
+            continue
+
         skip_threshold, replace_threshold, exception_threshold = (
             get_dewa_thresholds(dewa_config, path)
         )
@@ -241,6 +247,9 @@ def configure_ieee_style() -> None:
             "ytick.major.width": 0.8,
             "xtick.major.size": 3,
             "ytick.major.size": 3,
+            "mathtext.fontset": "stix",
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
             "savefig.facecolor": "white",
         }
     )
@@ -425,6 +434,7 @@ def plot_replace_sweep(
     output_path = output_dir / "symmetric_asymmetric_treplace_ppl.png"
     fig.tight_layout(pad=0.35, w_pad=1.2)
     fig.savefig(output_path, dpi=600, bbox_inches="tight")
+    fig.savefig(output_path.with_suffix(".pdf"), bbox_inches="tight")
     plt.close(fig)
     return output_path
 

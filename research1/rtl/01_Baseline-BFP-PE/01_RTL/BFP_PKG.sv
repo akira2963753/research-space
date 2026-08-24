@@ -7,7 +7,7 @@
 * Author:       Marco <harry2963753@gmail.com>
 *
 ******************************************************************************/
-`include "include.svh"
+`include "include.vh"
 
 package BFP_PKG;
 

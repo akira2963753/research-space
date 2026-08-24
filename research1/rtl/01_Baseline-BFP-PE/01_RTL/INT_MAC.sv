@@ -7,7 +7,7 @@
 * Author:       Marco <harry2963753@gmail.com>
 *
 ******************************************************************************/
-`include "include.svh"
+`include "include.vh"
 
 module INT_MAC(
     input [`BFP_SIGN_BW-1:0] w_sign_b, // g packed weight signs

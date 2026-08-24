@@ -38,6 +38,8 @@ Everything active lives under `research1/`:
   contracts, so read the stage table in `Process.md` before adding one.
 - `plot/NN_<topic>/plot_*.py` + `figures/g16|g32/` — paper-facing plotting scripts and output.
 - `rtl/01_Baseline-BFP-PE/` — baseline BFP processing element, testbench, synthesis, gate flow.
+- `rtl/02_Bucket-Getter-PE/` — independent parameterized Bucket Getter RTL prototype; its
+  local README records the implemented scope and verification limits.
 - `architecture/` — editable drawio + exported PNG of the Top-2 / DEWA / FP-ACC datapath.
 - `docs/` — the two documents above.
 

@@ -24,7 +24,7 @@ research1/
 |                   next to the result JSON files it produced
 |-- plot/           01_exponent-profile, 02_outlier-profile, 03_ppl-comparison;
 |                   each holds its plotting script and figures/g16|g32/ output
-`-- rtl/            01_Baseline-BFP-PE: RTL, testbench, synthesis, gate-level flow
+`-- rtl/            baseline BFP-PE plus the parameterized Bucket Getter PE prototype
 ```
 
 Result JSON files are self-describing: each records its full configuration,

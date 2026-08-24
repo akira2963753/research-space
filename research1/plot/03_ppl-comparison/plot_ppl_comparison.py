@@ -252,6 +252,9 @@ def configure_ieee_style() -> None:
             "ytick.major.width": 0.8,
             "xtick.major.size": 3,
             "ytick.major.size": 3,
+            "mathtext.fontset": "stix",
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
             "savefig.facecolor": "white",
         }
     )
@@ -313,6 +316,7 @@ def plot_delta_ppl(
     output_path = output_dir / "ppl_delta_comparison.png"
     fig.tight_layout(pad=0.35)
     fig.savefig(output_path, dpi=600, bbox_inches="tight")
+    fig.savefig(output_path.with_suffix(".pdf"), bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {output_path}")
 
@@ -479,6 +483,7 @@ def plot_delta_ppl_with_hybrid(
     output_path = output_dir / "ppl_delta_comparison_with_hybrid.png"
     fig.tight_layout(pad=0.35, w_pad=1.2)
     fig.savefig(output_path, dpi=600, bbox_inches="tight")
+    fig.savefig(output_path.with_suffix(".pdf"), bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {output_path}")
 

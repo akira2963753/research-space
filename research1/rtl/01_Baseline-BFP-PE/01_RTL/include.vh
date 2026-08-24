@@ -1,19 +1,19 @@
 /******************************************************************************
 * Copyright (C) 2026 Marco
 *
-* File Name:    include.svh
+* File Name:    include.vh
 * Project:      Research for Block Floating Point Processing Element
 * Module:       Global data-format / datapath-width definitions
 * Author:       Marco <harry2963753@gmail.com>
 *
 ******************************************************************************/
-`ifndef __BFP_INCLUDE_SVH__
-    `define __BFP_INCLUDE_SVH__
+`ifndef __BFP_INCLUDE_VH__
+    `define __BFP_INCLUDE_VH__
 
     // ---------------------------------------------------------------------------
     // Block Floating Point Data Format
     // ---------------------------------------------------------------------------
-    `define BFP_GSIZE 32
+    `define BFP_GSIZE 16
     `define BFP_EXP_W 5
     `define BFP_MAN_W 3
     `define BFP_MAN_BW (`BFP_GSIZE * `BFP_MAN_W) // 48-bit packed mantissa bus
@@ -43,4 +43,4 @@
     `define FPACC_LOD_W $clog2(`FPACC_MAN_W + 1) // 5-bit LOD_SIG result
     `define FPACC_CALC_EXP_W (`FPACC_EXP_W + 2) // 10-bit signed NORM exponent, range 97..168
 
-`endif // __BFP_INCLUDE_SVH__
+`endif // __BFP_INCLUDE_VH__

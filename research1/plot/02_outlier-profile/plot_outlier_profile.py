@@ -208,6 +208,8 @@ def configure_ieee_style() -> None:
             "ytick.major.size": 2.6,
             "ytick.minor.size": 1.5,
             "hatch.linewidth": 0.45,
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
             "savefig.facecolor": "white",
         }
     )
@@ -222,10 +224,13 @@ def finish_axis(ax: plt.Axes, grid_axis: str = "y") -> None:
 
 def save_figure(fig: plt.Figure, output_dir: Path, stem: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / f"{stem}.png"
-    fig.savefig(path, dpi=600, bbox_inches="tight")
+    png_path = output_dir / f"{stem}.png"
+    pdf_path = output_dir / f"{stem}.pdf"
+    fig.savefig(png_path, dpi=600, bbox_inches="tight")
+    fig.savefig(pdf_path, bbox_inches="tight")
     plt.close(fig)
-    print(f"Saved: {path}")
+    print(f"Saved: {png_path}")
+    print(f"Saved: {pdf_path}")
 
 
 def plot_in_window_rate(
