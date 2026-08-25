@@ -1,0 +1,55 @@
+% IEEE conference paper draft populated from Obsidian notes (IPAS Paper.md)
+
+\documentclass[conference]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{subfig}
+\usepackage{balance}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\title{Dynamic Exponent-Window Accumulation with Activation Top-2 Selection for Efficient Low-Bit BFP LLM Inference}
+
+\author{
+\IEEEauthorblockN{Ming-Hong Lin}
+\IEEEauthorblockA{\textit{Dept.\ of Electrical Engineering} \\
+\textit{National Taiwan University of Science and Technology}\\
+Taipei, Taiwan}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Block Floating Point (BFP) enables low-cost fixed-point multiply--accumulate within each block, but inter-block accumulation still requires an expensive floating-point accumulator (FP-Acc) when shared exponents differ.
+In synthesized low-bit BFP processing elements, the FP-Acc can consume up to 75\% of power and 55\% of area.
+Activation outliers further widen the exponent dynamic range and amplify FP-Acc activity.
+We propose Dynamic Exponent-Window Accumulation (DEWA), which confines most partial sums to a low-cost accumulator with a narrow dynamic range before forwarding exceptions to the FP-Acc.
+To mitigate outlier-induced window shifting, we combine DEWA with activation-only dual-exponent encoding and a Top-2 outlier cap per block, while keeping weights in single-exponent BFP.
+On LLaMA2-7B with WikiText-2, the proposed W-BFP4 / Top-2 A-BiE4 configuration preserves accuracy within 0.02 perplexity of a strong Top-2 baseline while substantially reducing FP-Acc utilization in functional simulation.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Block floating point, large language models, quantization, hardware accelerator, outlier handling
+\end{IEEEkeywords}
+
+\input{sections/01_introduction}
+\input{sections/02_background}
+\input{sections/03_design}
+\input{sections/04_evaluation}
+\input{sections/05_conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

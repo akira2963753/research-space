@@ -6,8 +6,8 @@
 #======================================================
 #              Set your desired file names
 #======================================================
-top_design=BUCKET_GETTER_PE
-rtl_source_file="file_trace_g16_bfp4.f"
+top_design=BG_PE
+rtl_source_file="file.f"
 gate_source_file="file.f"
 TIMESCALE="-timescale=1ns/1ps"
 syn_tcl="syn90.tcl"

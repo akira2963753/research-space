@@ -1,6 +1,6 @@
 # Research Process
 
-Last updated: 2026-08-20
+Last updated: 2026-08-25
 
 ## 1. Purpose and Authority
 
@@ -39,12 +39,14 @@ research1/
 |   |-- 06_BiE/
 |   |-- 07_ActivationBiE/
 |   |-- 08_ActivationBiETop2/
-|   `-- 09_Hybrid/
+|   |-- 09_Hybrid/
+|   `-- 10_RTL_Trace/
 |-- plot/
 |   |-- 01_exponent-profile/
 |   |-- 02_outlier-profile/
 |   `-- 03_ppl-comparison/
 `-- rtl/
+    |-- 00_verification/
     |-- 01_Baseline-BFP-PE/
     `-- 02_Bucket-Getter-PE/
 ```
@@ -57,14 +59,15 @@ Current inventory:
 | Stage | Producer Notebooks | Result JSON files | Status |
 |---|---:|---:|---|
 | `01_Baseline` | 4 | 4 | Complete |
-| `02_Vanilla_BFP` | 4 | 25 | Complete for the recorded scopes |
+| `02_Vanilla_BFP` | 4 | 40 | G16 and G32 complete for four models |
 | `03_Exponent_Profile` | 1 | 10 | G16 and G32 complete |
-| `04_DEW` | 1 | 25 | BFP4-BFP8, T8-T12 complete |
+| `04_DEW` | 2 | 25 | G16/G32 producers retained; recorded BFP4-BFP8, T8-T12 sweep complete |
 | `05_DEW_Outlier_Profile` | 1 | 2 | G16 and G32 complete |
 | `06_BiE` | 1 | 5 | BiE4-BiE8 complete |
 | `07_ActivationBiE` | 1 | 5 | BFP4/BiE4 through BFP8/BiE8 complete |
 | `08_ActivationBiETop2` | 1 | 1 | BFP4/BiE4 Top-2 complete |
 | `09_Hybrid` | 2 | 20 | Symmetric T3-T12; conditional asymmetric T_replace=2-4; direct-FP-ACC asymmetric T_replace=2-8 recorded |
+| `10_RTL_Trace` | 1 | 2 | LLaMA-2-7B layer-16 down_proj G16/BFP4 trace complete |
 
 The abandoned W/A-BiE + DEWA stage produced no canonical PPL JSON and was intentionally not
 retained in the active workspace. Obsolete overlapping-window results and the old
@@ -295,12 +298,13 @@ fallback are not yet modeled.
 | Top-2 W-BFP4/A-BiE4 | Complete | Only the BFP4/BiE4 design point |
 | Top-2 hybrid sweeps | Complete | Symmetric T3-T12; conditional `(8, 2-4, 8)` ablation; direct-FP-ACC `T_skip=9`, `T_replace=2-8` |
 | IEEE-style plots | In progress | Exponent, outlier, and PPL comparison plots exist |
-| Baseline BFP-PE RTL | In progress | Current source is G32/E5/M3 with custom FP32 accumulation |
+| Baseline BFP-PE RTL | Implemented and trace-verified | G16/E5/M3 with custom FP32 accumulation; 256/256 final results exact |
 | Fixed-width INT-Acc model | Not implemented | Required for real FP-ACC fallback activity |
 | Decode profiler | Not implemented | Existing activity is prefill-like only |
 | DEWA RTL | Not implemented | Must follow a frozen baseline RTL contract |
-| Bucket Getter RTL prototype | Implemented, locally elaborated | Independent paper reconstruction; no bit-exact reference, VCS, or synthesis result yet |
-| FP32 RTL simulation/synthesis/gate rerun | Required | No valid local EDA result for the current source |
+| Bucket Getter RTL prototype | Implemented and trace-verified | Top-6 x 4-bit, four exponent levels per bucket; server VCS produces 256/256 bit-exact results |
+| 90 nm synthesis and power | Rerun required | Existing Bucket Getter reports predate the three-module RTL refactor and are superseded |
+| Gate-level verification | Unconfirmed | Gate flow files exist, but no checked-in pass report establishes completion |
 
 ## 7. PPL Results
 
@@ -605,34 +609,17 @@ paper-facing output; their source counters remain in the profiler JSON files.
 Primary producer:
 
 ```text
-research1/plot/03_ppl-comparison/plot_ppl_comparison.py
-```
-
-Asymmetric replacement-threshold producer (archived conditional exception-skip):
-
-```text
-research1/plot/03_ppl-comparison/plot_asymmetric_treplace.py
-```
-
-Direct-FP-ACC `T_skip = 9` producer:
-
-```text
-research1/plot/03_ppl-comparison/plot_hybrid_asymmetric_tskip9_ppl.py
-```
-
-Selected `(T_skip, T_replace)` gallery:
-
-```text
-research1/plot/03_ppl-comparison/plot_hybrid_tskip_treplace_ppl.py
+research1/plot/03_ppl-comparison/ppl_comparison.ipynb
 ```
 
 Outputs:
 
 ```text
 research1/plot/03_ppl-comparison/figures/g16/ppl_delta_comparison.png
-research1/plot/03_ppl-comparison/figures/g16/symmetric_asymmetric_treplace_ppl.png
-research1/plot/03_ppl-comparison/figures/g16/hybrid_asymmetric_tskip9_delta_ppl.png
+research1/plot/03_ppl-comparison/figures/g16/hybrid_symmetric_ppl_log_zoom_t3-12.png
 research1/plot/03_ppl-comparison/figures/g16/hybrid_tskip_treplace_delta_ppl.png
+research1/plot/03_ppl-comparison/figures/g16_g32/vanilla_bfp_delta_ppl_g16.png
+research1/plot/03_ppl-comparison/figures/g16_g32/vanilla_bfp_delta_ppl_g32.png
 ```
 
 The plot compares Vanilla BFP, BiE, Activation BiE, and Activation BiE Top-2 against the FP16
@@ -643,123 +630,154 @@ The `(T_skip, T_replace)` gallery is `(8, 8)`, then `(9, 9)` through `(9, 2)`, t
 Equal-threshold points come from the symmetric JSON files; `(9, 8)` through `(9, 2)` come from
 the direct exception FP-ACC sweep. The figure labels only `(T_skip, T_replace)`.
 
-## 11. Baseline BFP-PE RTL
+## 11. Baseline PE and Bucket Getter RTL
 
-Active path:
+Active paths:
 
-```text
-research1/rtl/01_Baseline-BFP-PE/
-```
-
-Main source structure:
-
-| File | Role |
+| Path | Role |
 |---|---|
-| `00_TESTBED/gen_pattern.py` | Seeded bit-exact stimulus and golden generator |
-| `00_TESTBED/input.dat` | Canonical input vectors |
-| `00_TESTBED/golden.dat` | Canonical expected accumulator outputs |
-| `00_TESTBED/PATTERN.sv` | File-driven stimulus/checker |
-| `00_TESTBED/TESTBED.sv` | Testbench wrapper |
-| `01_RTL/INT_MAC.sv` | Per-lane multiply and signed reduction |
-| `01_RTL/BFP_PKG.sv` | LOD, normalization, and custom FP add functions |
-| `01_RTL/FP_ACC.sv` | Custom FP32 running accumulator |
-| `01_RTL/BFP_PE.sv` | Weight-stationary PE top level |
-| `02_SYN/syn16.tcl` | TSMC N16ADFP Design Compiler flow |
-| `03_GATE/` | Gate-level VCS flow |
+| `research1/rtl/00_verification/` | Shared trace metadata, mathematical reconstruction, and comparison reports |
+| `research1/rtl/01_Baseline-BFP-PE/` | Weight-stationary Baseline PE with a custom FP32 running accumulator |
+| `research1/rtl/02_Bucket-Getter-PE/` | Bucket Getter PE with adaptive integer buckets and FP32 spill accumulation |
 
-### 11.1 Current RTL Configuration
+The Bucket Getter is an independent accumulator prototype. It is not the RTL implementation of
+the Top-2 activation dispatcher and asymmetric DEWA architecture described in section 5.6.
 
-The checked-in source currently uses:
+### 11.1 Common Comparison Configuration
+
+The trace and synthesis comparison compile both designs with the same BFP input format:
 
 | Parameter | Value |
 |---|---:|
-| Group size | 32 |
-| Shared exponent width | 5 |
+| Group size | 16 |
+| Shared exponent width and bias | E5, bias 15 |
 | Magnitude mantissa width | 3 |
-| Per-value sign width | 1 |
+| Per-value format | BFP4: 1 sign bit + 3 magnitude bits |
+| Packed sign input | 16 bits |
+| Packed mantissa input | 48 bits |
+| Signed integer dot-product sum | 11 bits |
 | FP accumulator | custom FP32: 1 sign / 8 exponent / 23 mantissa |
-| FP accumulator bias | 127 |
-| Rounding | truncation in custom normalization/add path |
-| Subnormal behavior | unsupported; underflow flushes to zero |
-| Overflow behavior | saturates to all-ones exponent/mantissa code |
 
-Derived G32/E5/M3 widths:
+`02_Bucket-Getter-PE/01_RTL/include.vh` is the single configuration source for the Bucket Getter
+project. It selects G16/E5/M3 and Top-6 x 4-bit buckets with four exponent levels per bucket.
+The RTL, synthesis, and gate file lists contain no configuration `+define` overrides.
 
-| Signal | Width |
-|---|---:|
-| Packed mantissa input | 96 bits |
-| Packed sign input | 32 bits |
-| Lane magnitude product | 6 bits |
-| Signed lane product | 7 bits |
-| Signed adder-tree sum | 12 bits |
-| Unsigned dot-product magnitude | 11 bits |
-| FP accumulator word | 32 bits |
+### 11.2 Datapath Roles
 
-The product block exponent is:
+The Baseline PE performs one 16-lane signed integer dot product for each valid BFP block, converts
+the partial sum into the custom FP32 representation, and updates `FP_ACC` directly. Its registered
+weight follows weight-stationary timing: a same-cycle `weight_load` is visible on the following
+cycle.
+
+The Bucket Getter hierarchy is `BG_PE -> INT_MAC + BG_ACC + FP_ACC`. `INT_MAC` and `FP_ACC`
+use the same arithmetic contract as the Baseline modules. `BG_ACC` decomposes each signed 11-bit
+dot-product sum into radix-16 digits and accumulates those digits in six signed 4-bit circular
+buckets. Each bucket covers four exponent levels, so the active window covers 24 exponent levels.
+Non-max bucket overflow propagates to the adjacent higher-exponent bucket; max-bucket overflow
+and final drain emit raw sign, magnitude, and exponent spill terms. The common `FP_ACC` performs
+the same normalization, FP addition, and registered accumulation used by the Baseline. `BG_PE`
+is the simulation and synthesis top level; FP-Acc sharing is intentionally outside this version.
+
+### 11.3 Model-Derived Trace and Numerical Verification
+
+The canonical input comes from:
 
 ```text
-blk_exp = w_exp + a_exp - 15
+research1/experiments/10_RTL_Trace/llama2-7b/
+    llama2_layer16_down_proj_g16_bfp4/
 ```
 
-It ranges from -15 to 47. With an 11-bit dot-product magnitude, the custom FP32 normalized
-biased exponent ranges from 97 to 169, which is within the valid FP32 exponent range.
-
-The comments in `01_RTL/include.svh` that still mention 48-bit/16-bit input buses and
-11-bit/10-bit sum widths are stale G16 comments. The macros elaborate from `BFP_GSIZE=32`, but
-the comments must be corrected before RTL freeze.
-
-### 11.2 Pattern Status
-
-Current canonical pattern:
+It captures LLaMA-2-7B layer 16 `mlp.down_proj` after upstream G16/BFP4 fake quantization. The
+trace selects 16 contiguous token positions and 16 evenly spaced output channels:
 
 | Field | Value |
 |---|---:|
-| Seed | 20260720 |
-| Test groups | 45 |
-| Total cycles | 246 |
-| Input sign field | 8 hex digits = 32 bits |
-| Input mantissa field | 24 hex digits = 96 bits |
-| Golden output | 8 hex digits = 32 bits |
+| Dot products | 256 |
+| G16 blocks per dot product | 688 |
+| Valid data rows | 176,128 |
+| Setup plus valid input rows | 176,384 |
+| Reporting relative tolerance | 1e-6 |
 
-`input.dat` and `golden.dat` reproduce exactly from the current `gen_pattern.py`. This proves
-that the checked-in pattern files match the generator. It does not independently prove
-equivalence between the RTL BFP scale convention and the PyTorch fake-BFP definition.
+The Baseline and Bucket Getter testbeds use byte-identical `input.dat` files. The three-module
+Top-6 x 4-bit Bucket Getter was rerun with VCS S-2021.09 on the lab server on 2026-08-25 after
+the `BG_PE -> INT_MAC + BG_ACC + FP_ACC` refactor. All 176,384 input rows completed, and its
+256 output words match the pre-refactor bit-exact reference line by line:
 
-### 11.3 RTL Execution Rules
+| Check | Result |
+|---|---:|
+| Baseline exact final matches | 256 / 256 |
+| Baseline maximum cycle relative error | 0 |
+| Bucket Getter bit-exact matches versus Baseline | 256 / 256 |
+| Bucket Getter zero-error final results versus reference | 256 / 256 |
 
-Run the scripts from their own stage directories because the file lists use relative paths:
+This result validates the selected trace. It does not yet establish full corner-case coverage or
+a checked-in gate-level pass report.
+
+### 11.4 RTL Execution Rules
+
+Run each script from its own stage directory because the file lists use relative paths:
 
 ```text
-cd research1/rtl/01_Baseline-BFP-PE/00_TESTBED
-python gen_pattern.py
-
-cd ../01_RTL
+cd research1/rtl/01_Baseline-BFP-PE/01_RTL
 ./01_run
-
 cd ../02_SYN
 ./02_run
+cd ../03_GATE
+./03_run
 
+cd research1/rtl/02_Bucket-Getter-PE/01_RTL
+./01_run
+cd ../02_SYN
+./02_run
 cd ../03_GATE
 ./03_run
 ```
 
-Use a real Python interpreter, not the Microsoft Store `python3` alias. VCS, Design Compiler,
-N16ADFP libraries, and the gate-level Verilog model are available only on the server.
+The trace producer is the Colab-oriented `extract_llama2_g16_bfp4.ipynb`. VCS, Design Compiler,
+the TSMC 90 nm libraries, and the gate-level Verilog model are available only on the server.
 
-### 11.4 RTL Verification Status
+### 11.5 Superseded Pre-Refactor Synthesis Comparison
 
-| Stage | Status |
-|---|---|
-| Generator versus checked-in pattern files | Pass |
-| Python/RTL scale equivalence | Not proven |
-| Behavioral VCS for current G32/FP32 source | Must rerun on server |
-| Synthesis/area for current G32/FP32 source | Must rerun on server |
-| Power analysis | Not available |
-| Gate-level VCS for current G32/FP32 source | Must rerun on server |
-| DEWA RTL | Not implemented |
+The checked-in `Report-BFP4` reports use Synopsys Design Compiler O-2018.06, the TSMC 90 nm
+`slow` library, 0.9 V, and a 10 ns clock constraint. They describe the Top-6 x 4-bit design before
+the `BG_PE -> INT_MAC + BG_ACC + FP_ACC` refactor. The old hierarchy split normalization,
+FP addition, and the accumulator register across different modules, so its `u_fp_acc` row is not
+comparable with the Baseline `FP_ACC`. These reports are retained only as pre-refactor history.
 
-Any older FP16-accumulator area or simulation result is superseded and must not be used as the
-baseline for the current FP32 RTL.
+| Power metric | Baseline PE | Bucket Getter PE | Bucket Getter change |
+|---|---:|---:|---:|
+| FP-Acc hierarchy row | 1.972 mW | 0.00999 mW | Invalid module-boundary comparison |
+| FP-Acc share of design total | 67.8% | 2.4% | Invalid module-boundary comparison |
+| Total dynamic power | 2.8162 mW | 0.3789804 mW | Vectorless only |
+| Cell leakage power | 0.0931646 mW | 0.0446088 mW | Pre-refactor |
+| Design total power | 2.9093 mW | 0.4236 mW | Pre-refactor |
+
+The Bucket Getter `u_fp_acc` row contains only the old stateless FP adder. Its accumulator register
+was counted under `u_pe_core`, while bucket-to-FP conversion was counted under the bucket bank.
+All Bucket Getter PPA values must therefore be regenerated for the three-module hierarchy.
+
+The corresponding synthesis reports are:
+
+```text
+research1/rtl/01_Baseline-BFP-PE/02_SYN/Report/power.rpt
+research1/rtl/01_Baseline-BFP-PE/02_SYN/Report/power_h.rpt
+research1/rtl/02_Bucket-Getter-PE/02_SYN/Report-BFP4/power.rpt
+research1/rtl/02_Bucket-Getter-PE/02_SYN/Report-BFP4/power_h.rpt
+```
+
+### 11.6 Interpretation Limits
+
+The superseded reports use low-effort zero-delay switching-activity propagation. The checked-in synthesis
+scripts do not annotate trace-derived SAIF, VCD, or FSDB activity, and the reports do not include
+clock-network power or net-interconnect area. The reported reduction is therefore a vectorless
+power estimate, not measured workload energy.
+
+The two microarchitectures also have different acceptance, rotation, spill, and drain behavior.
+The stale power values are not normalized by cycles per dot product or throughput. A paper
+claim about energy efficiency requires the same trace-derived switching activity and an
+`energy_per_dot_product = average_power * execution_time` comparison, together with area and
+latency. The last pre-refactor cell-area reports show 18,273.63 for Baseline and 15,636.10 for
+Bucket Getter, but the Bucket Getter value does not describe the current three-module RTL.
 
 ## 12. Current Interpretation
 
@@ -779,7 +797,8 @@ The evidence supports the following statements:
    not modeled.
 
 The evidence does not yet support claims about actual FP-ACC power reduction, speedup, or silicon
-area improvement.
+area improvement for the current Top-6 x 4-bit Bucket Getter. The Design Compiler reports in
+section 11.5 are superseded and must not be used for the replacement RTL.
 
 ## 13. Required Next Steps
 
@@ -793,7 +812,7 @@ area improvement.
 
 - Decide whether the hardware baseline is G16/E5/M3 or G32/E5/M3.
 - Align RTL, generator, PPL experiments, and architecture diagrams to the selected group size.
-- Correct stale `include.svh` comments.
+- Correct stale `include.vh` comments.
 - Add cross-check vectors derived independently from the PyTorch fake-BFP definition.
 - Decide the exact mantissa scale, rounding, subnormal, overflow, Inf, and NaN contracts.
 - Decide where FP32-to-FP16 output conversion occurs.
@@ -830,14 +849,15 @@ one end-to-end run.
 - Report prompt length, decode length, batch size, phase-specific counters, and kernel shape.
 - Do not treat the current `BLOCK_M=32` Triton kernel as representative for `M=1` decode latency.
 
-### Priority 5: Freeze and Measure the Baseline RTL
+### Priority 5: Complete the RTL Measurement Methodology
 
-- Rerun behavioral VCS for the selected FP32 baseline.
-- Rerun synthesis using the same format, clock, library, corner, and constraints planned for
-  DEWA.
-- Record total area, module area, timing slack, and power methodology.
-- Rerun gate-level verification.
-- Preserve tool versions and server artifact paths in this document.
+- Rerun synthesis, timing, hierarchical area, and vectorless power for the Top-6 x 4-bit Bucket
+  Getter; replace the superseded Top-4 x 128-bit report values.
+- Rerun and record gate-level verification for both designs.
+- Generate trace-derived SAIF or equivalent switching activity from the same input workload.
+- Record accepted-input cycles, stall cycles, spill cycles, drain cycles, and total cycles per
+  dot product for both designs.
+- Report average power, latency, throughput, and energy per dot product together with cell area.
 
 ### Priority 6: Implement and Compare DEWA RTL
 

@@ -5,7 +5,7 @@
 #=================================================================
 #--------------------- TOP Module Definition ---------------------
 #=================================================================
-set DESIGN "BUCKET_GETTER_PE"
+set DESIGN "BG_PE"
 set CYCLE 10
 
 #=================================================================
@@ -14,7 +14,7 @@ set CYCLE 10
 sh mkdir -p Netlist
 sh mkdir -p Report
 sh mkdir -p Work
-define_design_lib $DESIGN -path Work
+define_design_lib WORK -path Work
 
 #=================================================================
 #------------------- Set Operating Conditions --------------------
@@ -24,8 +24,8 @@ set_operating_conditions -min fast -max slow
 #=================================================================
 #----------------- Analyze and Elaborate Design ------------------
 #=================================================================
-analyze -f sverilog -vcs "-f file.f"
-elaborate $DESIGN
+analyze -f sverilog -vcs "-f file.f" -library WORK
+elaborate $DESIGN -library WORK
 current_design $DESIGN
 link
 

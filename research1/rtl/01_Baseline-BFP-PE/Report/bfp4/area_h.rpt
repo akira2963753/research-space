@@ -1,0 +1,45 @@
+ 
+****************************************
+Report : area
+Design : BFP_PE
+Version: O-2018.06
+Date   : Tue Aug 25 02:54:14 2026
+****************************************
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+Number of ports:                          368
+Number of nets:                          4126
+Number of cells:                         3701
+Number of combinational cells:           3596
+Number of sequential cells:               103
+Number of macros/black boxes:               0
+Number of buf/inv:                        722
+Number of references:                      22
+
+Combinational area:              16683.912330
+Buf/Inv area:                     1647.576051
+Noncombinational area:            1589.716806
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 18273.629136
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area            Local cell area
+                                  -------------------  ----------------------------- 
+Hierarchical cell                 Absolute    Percent  Combi-      Noncombi-  Black-
+                                  Total       Total    national    national   boxes   Design
+--------------------------------  ----------  -------  ----------  ---------  ------  ---------
+BFP_PE                            18273.6291    100.0    583.5312  1071.1008  0.0000  BFP_PE
+u_fp_acc                           7662.1106     41.9   7143.4946   518.6160  0.0000  FP_ACC
+u_int_mac                          8956.8866     49.0   8956.8866     0.0000  0.0000  INT_MAC
+--------------------------------  ----------  -------  ----------  ---------  ------  ---------
+Total                                                  16683.9123  1589.7168  0.0000
+
+1

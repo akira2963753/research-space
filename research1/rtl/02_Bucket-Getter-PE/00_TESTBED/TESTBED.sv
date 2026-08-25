@@ -1,10 +1,13 @@
-////////////////////////////////////////////////////////////////////////////////
-// File: TESTBED.sv
-// Project: Bucket Getter BFP Processing Element
-// Author: Marco <harry2963753@gmail.com>
-// Description: DUT wrapper, simulation mode, SDF, and FSDB ownership
-////////////////////////////////////////////////////////////////////////////////
-`include "BG_INCLUDE.svh"
+/******************************************************************************
+* Copyright (C) 2026 Marco
+*
+* File Name:    TESTBED.sv
+* Project:      Bucket Getter BFP Processing Element
+* Module:       DUT wrapper, simulation mode, SDF, and FSDB ownership
+* Author:       Marco <harry2963753@gmail.com>
+*
+******************************************************************************/
+`include "include.vh"
 
 module TESTBED;
 
@@ -12,23 +15,23 @@ module TESTBED;
     logic rst_n;
     logic i_start;
     logic i_weight_load;
-    logic [`BG_SIGN_BW-1:0] i_w_sign;
-    logic [`BG_EXP_W-1:0] i_w_exp;
-    logic [`BG_MAN_BW-1:0] i_w_man;
+    logic [`BFP_SIGN_BW-1:0] i_w_sign;
+    logic [`BFP_EXP_W-1:0] i_w_exp;
+    logic [`BFP_MAN_BW-1:0] i_w_man;
     logic i_valid;
     logic o_ready;
     logic i_last;
-    logic [`BG_SIGN_BW-1:0] i_a_sign;
-    logic [`BG_EXP_W-1:0] i_a_exp;
-    logic [`BG_MAN_BW-1:0] i_a_man;
+    logic [`BFP_SIGN_BW-1:0] i_a_sign;
+    logic [`BFP_EXP_W-1:0] i_a_exp;
+    logic [`BFP_MAN_BW-1:0] i_a_man;
     logic o_result_valid;
     logic i_result_ready;
     logic o_sign;
-    logic [`BG_FP_EXP_W-1:0] o_exp;
-    logic [`BG_FP_MAN_W-1:0] o_man;
+    logic [`FPACC_EXP_W-1:0] o_exp;
+    logic [`FPACC_MAN_W-1:0] o_man;
     logic o_busy;
 
-    BUCKET_GETTER_PE u_dut(
+    BG_PE u_dut(
         .clk(clk),
         .rst_n(rst_n),
         .i_start(i_start),
@@ -77,7 +80,7 @@ module TESTBED;
             $display("======================================");
             $display("  [INFO] GATE-LEVEL SIMULATION START  ");
             $display("======================================");
-            $sdf_annotate("../02_SYN/Netlist/BUCKET_GETTER_PE_syn.sdf", u_dut, , , "maximum");
+            $sdf_annotate("../02_SYN/Netlist/BG_PE_syn.sdf", u_dut, , , "maximum");
         end
     `else
         initial begin
@@ -88,7 +91,7 @@ module TESTBED;
     `endif
 
     initial begin
-        $fsdbDumpfile("BUCKET_GETTER_PE.fsdb");
+        $fsdbDumpfile("BG_PE.fsdb");
         $fsdbDumpvars(0, u_dut, "+mda");
     end
 

@@ -1,30 +1,33 @@
-////////////////////////////////////////////////////////////////////////////////
-// File: PATTERN.sv
-// Project: Bucket Getter BFP Processing Element
-// Author: Marco <harry2963753@gmail.com>
-// Description: Full LLaMA2-7B G16/BFP4 trace driver and result writer
-////////////////////////////////////////////////////////////////////////////////
-`include "BG_INCLUDE.svh"
+/******************************************************************************
+* Copyright (C) 2026 Marco
+*
+* File Name:    PATTERN.sv
+* Project:      Bucket Getter BFP Processing Element
+* Module:       Full LLaMA2-7B G16/BFP4 trace driver and result writer
+* Author:       Marco <harry2963753@gmail.com>
+*
+******************************************************************************/
+`include "include.vh"
 
 module PATTERN(
     output logic clk,
     output logic rst_n,
     output logic i_start,
     output logic i_weight_load,
-    output logic [`BG_SIGN_BW-1:0] i_w_sign,
-    output logic [`BG_EXP_W-1:0] i_w_exp,
-    output logic [`BG_MAN_BW-1:0] i_w_man,
+    output logic [`BFP_SIGN_BW-1:0] i_w_sign,
+    output logic [`BFP_EXP_W-1:0] i_w_exp,
+    output logic [`BFP_MAN_BW-1:0] i_w_man,
     output logic i_valid,
     input logic o_ready,
     output logic i_last,
-    output logic [`BG_SIGN_BW-1:0] i_a_sign,
-    output logic [`BG_EXP_W-1:0] i_a_exp,
-    output logic [`BG_MAN_BW-1:0] i_a_man,
+    output logic [`BFP_SIGN_BW-1:0] i_a_sign,
+    output logic [`BFP_EXP_W-1:0] i_a_exp,
+    output logic [`BFP_MAN_BW-1:0] i_a_man,
     input logic o_result_valid,
     output logic i_result_ready,
     input logic o_sign,
-    input logic [`BG_FP_EXP_W-1:0] o_exp,
-    input logic [`BG_FP_MAN_W-1:0] o_man,
+    input logic [`FPACC_EXP_W-1:0] o_exp,
+    input logic [`FPACC_MAN_W-1:0] o_man,
     input logic o_busy
 );
 
@@ -41,12 +44,12 @@ module PATTERN(
     logic acc_clear_i;
     logic weight_load_i;
     logic in_valid_i;
-    logic [`BG_SIGN_BW-1:0] w_sign_i;
-    logic [`BG_EXP_W-1:0] w_exp_i;
-    logic [`BG_MAN_BW-1:0] w_man_i;
-    logic [`BG_SIGN_BW-1:0] a_sign_i;
-    logic [`BG_EXP_W-1:0] a_exp_i;
-    logic [`BG_MAN_BW-1:0] a_man_i;
+    logic [`BFP_SIGN_BW-1:0] w_sign_i;
+    logic [`BFP_EXP_W-1:0] w_exp_i;
+    logic [`BFP_MAN_BW-1:0] w_man_i;
+    logic [`BFP_SIGN_BW-1:0] a_sign_i;
+    logic [`BFP_EXP_W-1:0] a_exp_i;
+    logic [`BFP_MAN_BW-1:0] a_man_i;
 
     initial clk = 1'b0;
     always #(CLK_PERIOD / 2.0) clk = ~clk;

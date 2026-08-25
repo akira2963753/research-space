@@ -2,8 +2,11 @@
 #------------------------ Report & Output ------------------------
 #=================================================================
 current_design $DESIGN
-report_timing > Report/${DESIGN}_syn.timing
-report_area > Report/${DESIGN}_syn.area
+report_timing > ./Report/timing.rpt
+report_area > ./Report/area.rpt
+report_area -hierarchy > ./Report/area_h.rpt
+report_power > ./Report/power.rpt
+report_power -hierarchy > ./Report/power_h.rpt
 
 set bus_inference_style {%s[%d]}
 set bus_naming_style {%s[%d]}
