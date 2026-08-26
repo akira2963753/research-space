@@ -23,21 +23,13 @@ Activation-only BiE and Top-2 capping recover most of the accuracy gap of vanill
         Vanilla W/A-BFP4 & 6.283 \\
         W/A-BiE4 & 5.974 \\
         W-BFP4 / A-BiE4 & 6.013 \\
-        W-BFP4 / Top-2 A-BiE4 & 6.016 \\
+        W-BFP4 / T2A-BiE4 & 6.016 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
 \subsection{DEWA Threshold Sweep}
-Fig.~\ref{fig:hybrid_sweep} shows perplexity sensitivity to asymmetric DEWA thresholds under W-BFP4 / Top-2 A-BiE4.
-A wide operating region near the Top-2 baseline PPL (6.016) indicates that aggressive FP-Acc bypassing is compatible with negligible accuracy loss.
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/fig_hybrid_sweep.png}
-    \caption{Perplexity delta versus Top-2 baseline under asymmetric DEWA ($T_{\mathrm{skip}}$, $T_{\mathrm{replace}}$).}
-    \label{fig:hybrid_sweep}
-\end{figure}
+Perplexity remains near the Top-2 baseline (6.016) across a wide range of asymmetric DEWA thresholds under W-BFP4 / T2A-BiE4, indicating that aggressive FP-Acc bypassing is compatible with negligible accuracy loss.
 
 \subsection{Hardware-Oriented Metrics}
 Functional simulation reports DEWA out-of-window (OOW) decisions and optimistic FP-Acc request counts.

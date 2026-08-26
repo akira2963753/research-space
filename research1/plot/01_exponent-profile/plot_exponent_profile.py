@@ -16,7 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, Normalize
 from matplotlib.patches import Patch, Rectangle
-from matplotlib.ticker import MaxNLocator, PercentFormatter
+from matplotlib.ticker import MaxNLocator, MultipleLocator, PercentFormatter
 
 
 DEFAULT_FORMATS = (8, 7, 6, 5, 4)
@@ -44,6 +44,11 @@ SELECTED_LAYERS = (
     ("L15: Attention Output Projection", "model.layers.15.self_attn.o_proj"),
     ("L31: MLP Down Projection", "model.layers.31.mlp.down_proj"),
 )
+PANEL_TITLES = {
+    "L0: Query Projection": "L0:\nQuery Proj.",
+    "L15: Attention Output Projection": "L15:\nAttn. Output Proj.",
+    "L31: MLP Down Projection": "L31:\nMLP Down Proj.",
+}
 FORMAT_COLORS = {
     8: "#4C78A8",
     7: "#D17C2F",
@@ -271,10 +276,13 @@ def configure_ieee_style() -> None:
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+            "font.serif": ["EB Garamond", "Garamond", "Times New Roman", "DejaVu Serif"],
+            "font.weight": "bold",
             "font.size": 8,
             "axes.labelsize": 8,
             "axes.titlesize": 8,
+            "axes.labelweight": "bold",
+            "axes.titleweight": "bold",
             "xtick.labelsize": 7,
             "ytick.labelsize": 7,
             "legend.fontsize": 7,
@@ -548,7 +556,7 @@ def histogram_limits(results: list[ProfileResult]) -> tuple[int, int, float]:
 
     if exponent_min is None or exponent_max is None:
         raise RuntimeError("Unable to determine histogram limits")
-    return exponent_min - 1, exponent_max + 1, frequency_max * 1.12
+    return exponent_min - 1, exponent_max + 1, frequency_max * 1.06
 
 
 def plot_selected_histograms(
@@ -560,7 +568,7 @@ def plot_selected_histograms(
 
     for result in results:
         color = FORMAT_COLORS[result.bits]
-        fig, axes = plt.subplots(1, 3, figsize=(7.16, 2.65), sharex=True, sharey=True)
+        fig, axes = plt.subplots(1, 3, figsize=(3.40, 2.05), sharex=True, sharey=True)
 
         for ax, (label, name) in zip(axes, SELECTED_LAYERS):
             layer = result.layers[name]
@@ -587,26 +595,27 @@ def plot_selected_histograms(
                 linewidth=0.35,
                 zorder=2,
             )
-            ax.set_title(label, pad=8)
+            ax.set_title(PANEL_TITLES[label], pad=3, fontsize=7.5, linespacing=1.05)
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(0.0, y_max)
-            ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=9))
-            ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
+            ax.yaxis.set_major_locator(MultipleLocator(10))
             ax.yaxis.set_major_formatter(PercentFormatter(xmax=100.0, decimals=0))
             ax.tick_params(
                 axis="x",
                 direction="in",
                 top=False,
                 labelbottom=True,
-                pad=2,
+                pad=1.5,
+                labelsize=7.0,
             )
-            ax.tick_params(axis="y", direction="in", right=False)
+            ax.tick_params(axis="y", direction="in", right=False, labelsize=7.0)
             ax.grid(axis="y", color="0.84", linewidth=0.55, linestyle="--", zorder=0)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
 
-        axes[0].set_ylabel("Normalized Frequency (%)", labelpad=2)
-        axes[1].set_xlabel("Partial-sum Exponent", labelpad=2)
+        axes[0].set_ylabel("Normalized Frequency (%)", labelpad=1, fontsize=8.0)
+        axes[1].set_xlabel("Partial-sum Exponent", labelpad=1, fontsize=8.0)
         fig.legend(
             handles=[
                 Patch(
@@ -617,11 +626,12 @@ def plot_selected_histograms(
                 )
             ],
             loc="upper center",
-            bbox_to_anchor=(0.5, 0.985),
+            bbox_to_anchor=(0.5, 1.02),
             frameon=False,
-            handlelength=1.8,
+            handlelength=1.6,
+            fontsize=7.5,
         )
-        fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.90), pad=0.5, w_pad=0.8)
+        fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.90), pad=0.25, w_pad=0.35)
         save_figure(fig, output_dir, f"bfp{result.bits}_exponent_distribution")
 
 

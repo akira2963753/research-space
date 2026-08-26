@@ -13,8 +13,8 @@ This paper develops a hardware-friendly co-design that addresses both bottleneck
 Our contributions are:
 \begin{itemize}
     \item \textbf{Dynamic Exponent-Window Accumulation (DEWA):} a low-cost accumulator that retains partial sums within a sliding exponent window and forwards only out-of-window updates to the FP-Acc.
-    \item \textbf{Activation-only dual-exponent encoding with Top-2 selection:} weights remain single-exponent BFP while activations use a bounded dual-exponent format that retains at most two outliers per block, reducing storage and MAC control overhead relative to full BiE~\cite{bie2024,oiso2026}.
-    \item \textbf{Evaluation on LLaMA2-7B:} we quantify perplexity, outlier occupancy, and FP-Acc request reduction under a consistent WikiText-2 protocol, showing negligible accuracy loss for the proposed W-BFP4 / Top-2 A-BiE4 design point.
+    \item \textbf{Activation-only bi-exponent encoding with Top-2 selection:} weights remain single-exponent BFP while activations use a bounded bi-exponent format that retains at most two outliers per block, reducing storage and MAC control overhead relative to full BiE~\cite{bie2024,oiso2026}.
+    \item \textbf{Evaluation on LLaMA2-7B:} we quantify perplexity, outlier occupancy, and FP-Acc request reduction under a consistent WikiText-2 protocol, showing negligible accuracy loss for the proposed W-BFP4 / T2A-BiE4 design point.
 \end{itemize}
 
-The remainder of this paper reviews BFP deployment challenges (Section~\ref{sec:background}), presents DEWA and Top-2 activation routing (Section~\ref{sec:design}), reports experimental results (Section~\ref{sec:evaluation}), and concludes (Section~\ref{sec:conclusion}).
+The remainder of this paper reviews BFP deployment challenges (Section~\ref{sec:background}), presents DEWA and Top-2 activation routing (Section~\ref{sec:design}), describes the BFP-PE architecture (Section~\ref{sec:architecture}), reports experimental results (Section~\ref{sec:evaluation}), and concludes (Section~\ref{sec:conclusion}).

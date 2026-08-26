@@ -2,7 +2,7 @@
 \label{sec:conclusion}
 
 BFP accelerators face coupled challenges from expensive inter-block FP accumulation and activation outliers that shift shared exponents and widen partial-sum dynamic range.
-We presented Dynamic Exponent-Window Accumulation (DEWA) to confine most partial sums to a low-cost accumulator, complemented by activation-only dual-exponent encoding with a Top-2 outlier cap while keeping weights in single-exponent BFP.
-On LLaMA2-7B, the proposed W-BFP4 / Top-2 A-BiE4 configuration preserves WikiText-2 perplexity within 0.02 of a strong Top-2 baseline while enabling substantial FP-Acc bypass in functional evaluation.
+We presented Dynamic Exponent-Window Accumulation (DEWA) to confine most partial sums to a low-cost accumulator, complemented by activation-only bi-exponent encoding with a Top-2 outlier cap while keeping weights in single-exponent BFP.
+On LLaMA2-7B, the proposed W-BFP4 / T2A-BiE4 configuration preserves WikiText-2 perplexity within 0.02 of a strong Top-2 baseline while enabling substantial FP-Acc bypass in functional evaluation.
 
 Future work includes RTL implementation and synthesis of the full Top-2 DEWA datapath, cycle-accurate FP-Acc utilization measurement, and extension to additional models and group sizes.

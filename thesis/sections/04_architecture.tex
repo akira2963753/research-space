@@ -1,0 +1,20 @@
+\section{Hardware Architecture}
+\label{sec:architecture}
+
+Fig.~\ref{fig:architecture} shows the BFP-PE that implements W-BFP4 / T2A-BiE4 at group size 16.
+Weights remain single-exponent BFP.
+Each activation block arrives with two outlier indices instead of per-element type bits.
+An outlier-index encoder and dispatcher then split the 16 lanes into a normal path and at most two outlier lanes.
+
+Normal lanes feed an integer adder tree, and the tree output updates the DEWA accumulator of Section~\ref{sec:design} under $(T_{\mathrm{skip}}, T_{\mathrm{replace}})$.
+Each occupied outlier lane has its own adder-tree output and is sent directly to a shared FP-Acc; the exception path does not compare exponents.
+If a block has fewer than two outliers, a reserved index marks the unused slot and that lane contributes a zero partial.
+
+The FP-Acc is therefore shared by the encoded outlier lanes and by DEWA results that leave the integer window, rather than by every inter-block partial sum.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/architecture.pdf}
+    \caption{Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). Outlier indices dispatch each block onto a normal DEWA path and up to two outlier lanes that share one FP-Acc.}
+    \label{fig:architecture}
+\end{figure}
