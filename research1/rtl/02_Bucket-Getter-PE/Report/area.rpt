@@ -3,28 +3,28 @@
 Report : area
 Design : BG_PE
 Version: O-2018.06
-Date   : Tue Aug 25 08:19:08 2026
+Date   : Wed Aug 26 22:56:57 2026
 ****************************************
 
 Library(s) Used:
 
     slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
 
-Number of ports:                          422
-Number of nets:                          6376
-Number of cells:                         5916
-Number of combinational cells:           5752
-Number of sequential cells:               161
+Number of ports:                          415
+Number of nets:                          5389
+Number of cells:                         4935
+Number of combinational cells:           4764
+Number of sequential cells:               168
 Number of macros/black boxes:               0
-Number of buf/inv:                       1192
-Number of references:                      28
+Number of buf/inv:                       1025
+Number of references:                      26
 
-Combinational area:              30366.202122
-Buf/Inv area:                     2959.286490
-Noncombinational area:            2536.632019
+Combinational area:              24611.328434
+Buf/Inv area:                     2447.726478
+Noncombinational area:            2749.017645
 Macro/Black Box area:                0.000000
 Net Interconnect area:      undefined  (No wire load specified)
 
-Total cell area:                 32902.834141
+Total cell area:                 27360.346079
 Total area:                 undefined
 1

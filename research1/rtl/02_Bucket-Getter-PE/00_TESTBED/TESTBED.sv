@@ -13,66 +13,66 @@ module TESTBED;
 
     logic clk;
     logic rst_n;
-    logic i_start;
-    logic i_weight_load;
-    logic [`BFP_SIGN_BW-1:0] i_w_sign;
-    logic [`BFP_EXP_W-1:0] i_w_exp;
-    logic [`BFP_MAN_BW-1:0] i_w_man;
-    logic i_valid;
-    logic o_ready;
-    logic i_last;
-    logic [`BFP_SIGN_BW-1:0] i_a_sign;
-    logic [`BFP_EXP_W-1:0] i_a_exp;
-    logic [`BFP_MAN_BW-1:0] i_a_man;
-    logic o_result_valid;
-    logic i_result_ready;
+    logic acc_clear;
+    logic weight_load;
+    logic in_valid;
+    logic [`BFP_SIGN_BW-1:0] w_sign_b;
+    logic [`BFP_SIGN_BW-1:0] a_sign_b;
+    logic [`BFP_EXP_W-1:0] w_exp;
+    logic [`BFP_EXP_W-1:0] a_exp;
+    logic [`BFP_MAN_BW-1:0] w_man_b;
+    logic [`BFP_MAN_BW-1:0] a_man_b;
+    logic in_ready;
+    logic in_last;
+    logic out_valid;
+    logic out_ready;
     logic o_sign;
     logic [`FPACC_EXP_W-1:0] o_exp;
     logic [`FPACC_MAN_W-1:0] o_man;
-    logic o_busy;
+    logic busy;
 
     BG_PE u_dut(
         .clk(clk),
         .rst_n(rst_n),
-        .i_start(i_start),
-        .i_weight_load(i_weight_load),
-        .i_w_sign(i_w_sign),
-        .i_w_exp(i_w_exp),
-        .i_w_man(i_w_man),
-        .i_valid(i_valid),
-        .o_ready(o_ready),
-        .i_last(i_last),
-        .i_a_sign(i_a_sign),
-        .i_a_exp(i_a_exp),
-        .i_a_man(i_a_man),
-        .o_result_valid(o_result_valid),
-        .i_result_ready(i_result_ready),
+        .acc_clear(acc_clear),
+        .weight_load(weight_load),
+        .in_valid(in_valid),
+        .w_sign_b(w_sign_b),
+        .a_sign_b(a_sign_b),
+        .w_exp(w_exp),
+        .a_exp(a_exp),
+        .w_man_b(w_man_b),
+        .a_man_b(a_man_b),
+        .in_ready(in_ready),
+        .in_last(in_last),
+        .out_valid(out_valid),
+        .out_ready(out_ready),
         .o_sign(o_sign),
         .o_exp(o_exp),
         .o_man(o_man),
-        .o_busy(o_busy)
+        .busy(busy)
     );
 
     PATTERN u_pattern(
         .clk(clk),
         .rst_n(rst_n),
-        .i_start(i_start),
-        .i_weight_load(i_weight_load),
-        .i_w_sign(i_w_sign),
-        .i_w_exp(i_w_exp),
-        .i_w_man(i_w_man),
-        .i_valid(i_valid),
-        .o_ready(o_ready),
-        .i_last(i_last),
-        .i_a_sign(i_a_sign),
-        .i_a_exp(i_a_exp),
-        .i_a_man(i_a_man),
-        .o_result_valid(o_result_valid),
-        .i_result_ready(i_result_ready),
+        .acc_clear(acc_clear),
+        .weight_load(weight_load),
+        .in_valid(in_valid),
+        .w_sign_b(w_sign_b),
+        .a_sign_b(a_sign_b),
+        .w_exp(w_exp),
+        .a_exp(a_exp),
+        .w_man_b(w_man_b),
+        .a_man_b(a_man_b),
+        .in_ready(in_ready),
+        .in_last(in_last),
+        .out_valid(out_valid),
+        .out_ready(out_ready),
         .o_sign(o_sign),
         .o_exp(o_exp),
         .o_man(o_man),
-        .o_busy(o_busy)
+        .busy(busy)
     );
 
     `ifdef GATE

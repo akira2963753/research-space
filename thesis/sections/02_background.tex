@@ -59,10 +59,3 @@ Nonoutlier values therefore keep their effective mantissa bits even when the blo
 The accuracy gain, however, comes with non-trivial overhead.
 Because outliers are inherently rare, a per-element type bit spends storage on every element to describe a small minority, and the two exponents must be applied to both operands of a MAC, yielding four exponent-pair cases that the datapath has to support.
 This overhead is what makes a direct combination of bi-exponent BFP with a low-cost accumulator unattractive, and it is the starting point for the format we propose in Section~\ref{sec:design} (Fig.~\ref{fig:data_format}(c)).
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/bfp4_exponent_distribution.pdf}
-    \caption{BFP4 partial-sum exponent distributions on three LLaMA2-7B layers (group size 16). The shaded band is the observed full span.}
-    \label{fig:bfp4_exponent_dist}
-\end{figure}

@@ -5,7 +5,7 @@ Report : power
         -analysis_effort low
 Design : BG_PE
 Version: O-2018.06
-Date   : Tue Aug 25 08:19:08 2026
+Date   : Wed Aug 26 22:56:57 2026
 ****************************************
 
 
@@ -31,8 +31,8 @@ Power-specific unit information :
                                        Switch   Int      Leak     Total
 Hierarchy                              Power    Power    Power    Power    %
 --------------------------------------------------------------------------------
-BG_PE                                     0.124    0.328 1.80e+08    0.633 100.0
-  u_fp_acc (FP_ACC)                    1.07e-03 3.14e-02 1.24e+07 4.48e-02   7.1
-  u_bg_acc (BG_ACC)                    5.27e-02    0.126 7.19e+07    0.250  39.6
-  u_int_mac (INT_MAC)                  6.44e-02 9.81e-02 9.10e+07    0.253  40.1
+BG_PE                                     1.322    1.977 1.51e+08    3.449 100.0
+  u_fp_acc (FP_ACC)                    5.78e-04 3.13e-02 1.62e+07 4.81e-02   1.4
+  u_bg_acc (BG_ACC)                       0.799    1.057 3.83e+07    1.895  54.9
+  u_int_mac (INT_MAC)                     0.502    0.790 9.17e+07    1.384  40.1
 1

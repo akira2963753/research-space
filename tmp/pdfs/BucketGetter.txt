@@ -1,0 +1,1478 @@
+          Bucket Getter: A Bucket-based Processing Engine for Low-bit
+                        Block Floating Point (BFP) DNNs
+                                           Yun-Chen Lo                                                                                Ren-Shuo Liu
+                                National Tsing Hua University                                                             National Tsing Hua University
+                                      Hsinchu, Taiwan                                                                           Hsinchu, Taiwan
+                                yunchen.lo@gapp.nthu.edu.tw                                                                 renshuo@ee.nthu.edu.tw
+
+      ABSTRACT                                                                                          KEYWORDS
+      Block floating point (BFP), an efficient numerical system for deep                                Floating-point architecture, Bucket-based accumulation, Deep learn-
+      neural networks (DNNs), achieves a good trade-off between dy-                                     ing
+      namic range and hardware costs. Specifically, prior works have                                    ACM Reference Format:
+      demonstrated that BFP format with 3∼5-bit mantissa can achieve                                    Yun-Chen Lo and Ren-Shuo Liu. 2023. Bucket Getter: A Bucket-based Pro-
+      FP32-comparable accuracy for various DNN workloads. We find that                                  cessing Engine for Low-bit Block Floating Point (BFP) DNNs. In 56th Annual
+      the floating-point adder (FP-Acc), which contains modules for nor-                                IEEE/ACM International Symposium on Microarchitecture (MICRO ’23), Octo-
+      malization, alignment, addition, and fixed-point-to-floating-point                                ber 28–November 01, 2023, Toronto, ON, Canada. ACM, New York, NY, USA,
+      (FXP2FP) conversion, dominates the power and area overheads,                                      14 pages. https://doi.org/10.1145/3613424.3614249
+      hence hindering the hardware efficiency of state-of-the-art low-bit
+      BFP processing engines (BFP-PE).
+         To mitigate the identified issue, we propose Bucket Getter, a                                                                              Exponent    Mantissas
+
+      novel architecture implemented with the following techniques for                                                        …        Input BFP1                            …
+                                                                                                                              …        Input BFP2                            …
+      improving the energy efficiency and area efficiency: 1) we propose
+      a bucket-based accumulation unit prior to FP-Acc, which uses mul-
+                                                                                                                ⨯ ⨯ …             ⨯                       ⨯ ⨯ …                   ⨯
+      tiple small accumulators (buckets) that are responsible for a small                                   +                          INT-MAC
+                                                                                                                                                      +
+                                                                                                                          +                                           +
+      range of exponent values where intermediate results are distributed
+      accordingly, and b) accumulate in FXP domain. This reduces the                                                FP                                                +
+                                                                                                                          +              INT-Acc
+      activities of power-hungry a) alignment and b) format conversion
+                                                                                                         FP Partial Sum                  Buckets                          Carry
+      units. 2) We propose inter-bucket carry propagation, which allows                                                                                        MSBs   LSBs   …        Filtering
+      each bucket to transmit overflow to an adjacent bucket and further                                                                                                              effect
+      reduces the activity of FP-Acc. 3) We propose an out-of-bound-                                                                    FP-Acc
+      aware, adaptive and circular bucket accumulator to significantly re-                               Observation:                                                                   Product
+                                                                                                         This adder is the power                               FP                       from
+      duce the overhead for the bucket-based accumulator. 4) We further                                                                                               +                 other
+      propose shared FP-Acc, which exploits the low activity of FP-Acc in                                and area bottleneck                                                            BFP-PE
+                                                                                                                                                                                      Shared
+      the bucket-based architecture and shares an FP-Acc across several
+      MAC engines to reduce the area overhead of FP-Acc.
+                                                                                                                 Solution:                  FP Partial Sum                            FP-Acc
+
+         The experimental results based on TSMC 40 nm demonstrate                                                • Filter FP-Acc activities
+      that our proposed Bucket Getter architecture reduces the compu-                                            • Share FP-Acc among PEs
+      tational energy by up to 57% and improves the area efficiency by                                   (a) Baseline BFP-PE                        (b) Proposed Bucket Getter
+      up to 1.4×, compared to state-of-the-art BFP engines across seven
+      representative DNN models. Furthermore, our proposed approach                                             Figure 1: Big picture of the proposed architecture
+      helps state-of-the-art floating-point engines reduce up to 32% of
+      the PE area and 81% of the PE power.
+                                                                                                        1       INTRODUCTION
+      CCS CONCEPTS                                                                                      Deep neural networks (DNNs) have been continuously enabling
+      • Computer systems organization → Neural networks; • Hard-                                        many new applications [30, 32, 34, 48], which has lead to the clear
+      ware → Arithmetic and datapath circuits.                                                          demand for deploying an enormous number of DNN accelerators
+                                                                                                        into cloud servers [2, 19] and edge devices [16, 18, 24, 27, 28]. To
+      Permission to make digital or hard copies of all or part of this work for personal or
+      classroom use is granted without fee provided that copies are not made or distributed             push the limit of energy efficiency and cost efficiency for DNN
+      for profit or commercial advantage and that copies bear this notice and the full citation         accelerators, researchers have explored custom number systems
+      on the first page. Copyrights for components of this work owned by others than the                and hardware [7, 20, 23, 46]. Among them, custom, low-bit floating
+      author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or
+      republish, to post on servers or to redistribute to lists, requires prior specific permission     point (FP) formats, including block floating point (BFP), are promis-
+      and/or a fee. Request permissions from permissions@acm.org.                                       ing candidates. For example, BrainFloat (also known as bfloat or
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                      BF16) [20] and TensorFloat [33] are low-bit FP formats tailored for
+      © 2023 Copyright held by the owner/author(s). Publication rights licensed to ACM.
+      ACM ISBN 979-8-4007-0329-4/23/10. . . $15.00                                                      DNN accelerators by Google and NVIDIA, respectively. BrainFloat
+      https://doi.org/10.1145/3613424.3614249                                                           comprises one sign bit, seven mantissa bits, and eight exponent
+
+
+
+
+                                                                                                 1002
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                                              Y.-C. Lo et al.
+
+
+       (a) Block Floating Point (BFP) (b) BFP Processing Engine (BFP-PE)                               (c) Power Analysis                                 (d) Area Analysis
+                           32 0       m-bit                                                     8                                            10000
+                                             ⨯ ⨯ … ×g ⨯                                              FP Register                                         FP Register
+         MSFP-12
+
+
+
+
+                                                                                   Power (mW)
+                                                                                                     FP-Acc                                       8000   FP-Acc
+
+
+
+
+                                                                                                                                     Area (𝜇M2)
+          (g=16)
+         (1s3m8e)
+                                                e-bit         +                                 6    INT-MAC                                             INT-MAC
+                                                                                                                                                  6000
+                                            +              Norm                                 4
+         7       0
+                                                           Align
+
+
+
+
+                                                                          FP-Acc
+                                                                                                                                                  4000
+
+
+
+
+                                                                                                                             67%
+                                                                                                                    73%
+        Exponent (e)
+                                                          Addition                              2
+
+
+
+
+                                                                                                      75%
+                                                                                                                                                  2000
+
+
+
+
+                                                                                                                                                                                    36%
+                                                                                                                                                          55%
+
+
+                                                                                                                                                                        44%
+                                                          FXP2FP                                0                                                   0
+                                                                     FP                              1s2m8e        1s3m8e   1s4m8e                       1s2m8e        1s3m8e     1s4m8e
+              Sign (s)    Mantissa (m)
+
+      Figure 2: (a) Block floating point format (MSFP-12), (b) State-of-the-art BFP processing engine (BFP-PE) [7, 37], (c) Power
+      analysis of SOTA BFP-PEs, and (d) Area analysis of SOTA BFP-PEs
+
+
+      bits (1s7m8e for short), and TensorFloat comprises 1s10m8e bits.                              conventional FP format to approximately 3 bits (e.g., 1s3m) and only
+      Since DNNs involve a massive number of inner products among                                   needs to employ one exponent per, e.g., 16 FP numbers. Although
+      vectors, the block floating point (BFP) [7, 8, 21, 37, 43] format en-                         this impression is not totally incorrect, we observed a less intu-
+      codes each vector of, e.g., 16 FP numbers into 16 sign-magnitude                              itive finding: the FP-Acc stage, which still involves FP operations,
+      integers with one shared, factored-out exponent. By doing so, an                              remains a power and area bottleneck.
+      inner product between two BFP vectors involves multiplications                                   Figure 2 quantitatively shows the bottleneck. We use Design
+      of sign-magnitude integers instead of that for FP numbers. Specifi-                           Compiler to synthesize BFP-PEs and use PrimeTimePX to break
+      cally, Microsoft’s BFP, or MSFP, as coined by Microsoft, is employed                          down their power consumption on real workloads with TSMC 40
+      in Microsoft’s Brainwave inference accelerators and demonstrates                              nm technology. We analyze three BFP formats, namely, 1s2m8e
+      promising power and cost efficiency [7, 10]. Among many config-                               (MSFP-11), 1s3m8e (MSFP-12), and 1s4m8e (MSFP-13). Figure 2(a)
+      urations, one representative MSFP configuration is MSFP-12 (i.e.,                             only illustrates a representative case, 1s3m8e (MSFP-12), for brevity.
+      1s3m8e, where 1 + 3 + 8 = 12), which packs 16 4-bit sign-magnitude                            Figure 2(b) shows the detailed BFP-PE structure and emphasizes the
+      integers (i.e., 1s3m) with one shared 8-bit exponent (i.e., 8e) to                            FP-Acc stage. Unlike in Figure 1, in which FP-Acc is illustrated as an
+      represent a 16-tuple FP vector.                                                               adder for brevity, the fact is that the FP-Acc involves multiple units.
+         In response, this work focuses on designing accelerators for this                          In addition to the adder, FP-Acc further requires normalization,
+      emerging DNN-friendly format, BFP (also MSFP). Specifically, we                               alignment, and fixed-point-to-floating-point conversion (FXP2FP)
+      provide insights into the power and hardware bottlenecks of BFP-                              units. It is because of these many units that FP-Acc contributes to
+      based processing engines (BFP-PE) that perform inner products, and                            significant power and area consumption in a BFP-PE.
+      we correspondingly improve the microarchitecture of the PEs. As                                  Figure 2(c) shows the power breakdown of a BFP-PE. The FP-Acc
+      shown in Figure 1, we identify a critical adder that plays a bottleneck                       stage contributes to 75%, 73%, and 67% of the PE power for the
+      role in terms of power and area in a BFP-PE. Therefore, we propose                            1s2m8e, 1s3m8e, and 1s4m8e configurations, respectively. Clearly,
+      to lower the power consumption of the adder by introducing a layer                            FP-Acc dominates the power consumption of a BFP-PE. Figure 2(d)
+      of buckets, which filter out the majority of activities reaching the                          shows the area breakdown of a BFP-PE, and FP-Acc contributes
+      adder, similar to a cache in a memory hierarchy. In addition, since                           to 36%, 44%, and 55% of the PE area for the 1s2m8e, 1s3m8e, and
+      the number of adder activities is reduced, we propose sharing one                             1s4m8e configurations, respectively. In other words, one adder in
+      adder among multiple PEs to reduce the overall hardware cost (i.e.,                           the FP-Acc stage can lead to a larger area than the adder tree and
+      area).                                                                                        16 multipliers in the INT-MAC stage.
+         Specifically, a baseline BFP-PE (Figure 1(a)) is composed of two                              We point out the rationales for why FP-Acc contributes to sig-
+      stages: INT-MAC (integer multiply and accumulate) and FP-ACC                                  nificant power and area as follows.
+      (FP accumulate). The INT-MAC stage involves low-bit sign-magnitude
+      multipliers, an adder tree, and an integer adder for the exponents.                              (1) The normalization unit must find the leading one of the
+      We select MSFP-12, as an example. The INT-MAC stage comprises                                        adder tree output for the subsequent alignment. A leading-
+      16 4-bit multipliers and an adder tree with 16 7-bit inputs to re-                                   one detector utilizes a tree structure and thus incurs large
+      duce the 16 products to a partial-sum term. The FP-ACC stage first                                   power and area costs [31].
+      scales the partial-sum term according to the sum of the two expo-                                (2) The addition unit is in 23-bit precision (i.e., a single-precision
+      nents. Since DNN involves MAC with thousands of products (e.g., a                                    FP) instead of low-bit precision.
+      3×3×512 DNN kernel leads to 4,608 products), the partial-sum term                                (3) The FXP2FP unit also requires a leading-one detector. Fur-
+      has to be accumulated with other previously computed partial-sum                                     thermore, FXP2FP requires adders and logic to format the
+      terms in an FP accumulation register.                                                                final FP number.
+         One may think that the baseline BFP-PEs are sufficiently opti-
+      mized since BFP format narrows the mantissa fields from 23 bits in                               In response, we propose Bucket Getter architecture to enhance
+                                                                                                    the energy efficiency and area efficiency of BFP-PEs. To mitigate the
+
+
+
+
+                                                                                   1003
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      Bucket Getter: A Bucket-based Processing Engine for Low-bit Block Floating Point (BFP) DNNs           MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada
+
+
+      large power overhead of FP-Acc in BFP-PEs, we propose bucket-                                                (a) Accumulation Example
+                                                                                                                      !           %
+      based accumulator architecture to reduce the activity of FP-Acc.                                     MAC 1: 𝑎0×2    • 𝑤0×2 = 17×2!
+                                                                                                                       "#         "& =
+      Specifically, instead of performing accumulation using just one                                            𝑎
+                                                                                                           MAC 2: 1 ×2    • 𝑤 1 ×2     23×2")
+                                                                                                                       "! •       "'        "*
+      register in the FP domain, the bucket-based accumulator utilizes                                           𝑎
+                                                                                                           MAC 3: 2 ×2      𝑤 2 ×2   = 15×2
+      a group of small accumulators (buckets), and each of them is only                                               $ •         "(       #
+                                                                                                                 𝑎
+                                                                                                           MAC 4: 3 ×2      𝑤 3 ×2   =  3×2
+      responsible for accumulating partial sums with a small range of                                                              1.8189×2& (58.207)
+      exponent values. Since each bucket is only responsible for accu-
+                                                                                                             (b) Baseline Accumulation Strategy
+      mulating partial sums within a limited dynamic range, the circuit                                                  17×2! + 23×2") + 15×2"* + 3×2# (1)
+      complexity is significantly reduced. The architectural benefits of
+                                                                                                               = (((17×2! + 23×2") ) + 15×2"* ) + 3×2# ) (2)
+      bucket-based accumulators are twofold: 1) Accumulation using a
+      small bucket accumulator eliminates the need for normalization and                                                                        = 1.8189×2& (3)
+      FXP2FP since a partial sum can be accumulated in the FXP domain.                                 3 FP-Acc ( , Norm.+INT-Add+Wide-shifter+FXP2FP)
+      Therefore, the power overheads of these modules are reduced. 2)
+      Since each bucket is only responsible for a small range of exponent                                (c) Bucket-based Accumulation Strategy
+                                                                                                                    !
+      values, the shifter alignment unit can be greatly simplified, hence                           MAC 1: 𝑎0×2      𝑤0×2% = 17×2!
+                                                                                                                         •                       Group1 E∊ -8~-5
+                                                                                                                    "#   "&      ")
+      reducing its power consumption. We further propose two mecha-                                 MAC 2: 𝑎1×2    • 𝑤1×2 = 23×2                       +
+                                                                                                                "! •     "'      "*
+      nisms, namely, inter-bucket carry propagation and adaptive circular                           MAC 3: 𝑎2×2      𝑤2×2 = 15×2                 Group2 E∊ 0~3
+                                                                                                               $ •
+      bucket architecture, to optimize the area and power overhead. To                              MAC 4: 𝑎3×2      𝑤3×2"( = 3×2#
+
+
+
+
+                                                                                                                                                   =
+      further reduce the size of FP-Acc, we propose shared FP-Acc. By                                                                          1.8189×2&
+      exploiting the low activity of FP-Acc in the bucket-based architec-
+      ture, we can share FP-Acc among several PEs to reduce the area                                                     17×2! + 23×2") + 15×2"* + 3×2# (4)
+                                                                                                         Buckete=-8~-5                   Buckete=0~3
+      overhead of FP-Acc.
+                                                                                                    = (23 + (15 ≪ 1)) ×2") + ((17 ≪ 1) + (3 ≪ 3)) ×2% (5)
+         In summary, the key contributions of this work are as follows:
+                                                                                                                                         = 53 ×2") + 58×2% (6)
+           • We identify that the power and area bottlenecks of state-of-
+             the-art BFP-PEs are floating-point accumulation (FP-Acc),                                                                          = 1.8189×2& (7)
+             which contributes up to 75% of the power and 55% of the                                  2 INT-Acc ( ), 3 Narrow-shifter (≪), and 1 FP-Acc ( )
+             area costs of BFP-PEs.
+           • We propose a bucket-based BFP-PE architecture, which re-                        Figure 3: (a) An example of accumulating 4 BFP partial sums.
+             duces the power consumption by replacing most of the FP-                        (b) The baseline accumulation method [7, 37] directly per-
+             Acc activities with INT-Acc activities.                                         forms FP-Acc, which is energy-consuming. (c) We classify
+           • We propose an inter-bucket carry propagation scheme that                        the partial sums into groups based on the exponent values.
+             allows each bucket to transfer overflow to an adjacent bucket                   The bucket-based accumulation approach yields partial sums
+             to further reduce the activity of FP-Acc.                                       with similar exponent values in the same buckets, hence re-
+           • We propose an out-of-bound-aware adaptive circular bucket                       ducing FP-Acc activity to one.
+             accumulator to reduce the required number of buckets.
+           • We propose a shared FP-Acc module, which shares an FP-Acc
+             across multiple PEs to reduce the area overhead of FP-Acc.
+           • Experiments based on seven DNN models demonstrate that
+             Bucket Getter outperforms state-of-the-art BFP-PEs by up                        our proposal. Figure 3(a) presents an example of accumulating four
+             to 57% in terms of the computational energy reduction and                       partial sum terms of BFP. We assume that each bucket is responsible
+             improves iso-area speedup by up to 1.4×.                                        for a range of four exponent values. Therefore, we assume the
+                                                                                             groups to be [-8 to -5], [-4 to -1], and [0 to 3]. Figure 3(b) shows the
+         The rest of this paper is organized as follows: Section 2 presents
+                                                                                             baseline strategy adopted by state-of-the-art BFP-PEs [7, 37], and
+      the benefits of the bucket-based architecture; Section 3 illustrates
+                                                                                             in this approach, FP-Acc is performed for each cycle. To accumulate
+      the bucket-based accumulation strategy; Section 4 presents the
+                                                                                             four partial sum terms, baseline accumulation requires 3 FP-Accs.
+      inter-bucket carry propagation scheme; Section 5 introduces the
+                                                                                             The key observation of this work is that we can separate the four
+      out-of-bound-aware adaptive and circular bucket accumulator; Sec-
+                                                                                             partial sums in Figure 3(a) into two groups, where group 1 and
+      tion 6 presents the shared FP-Acc technique; Section 7 presents the
+                                                                                             group 2 are responsible for exponent values of 0 ∼ 3 and −8 ∼ −5,
+      Bucket Getter accelerator; Section 8 describes how to support our
+                                                                                             respectively. As shown in Figure 3(c), the dynamic range of each
+      techniques for FP-PEs; Section 9 presents the potential impact of
+                                                                                             group is small (4 bits); hence, accumulating these terms requires
+      the design; Section 10 presents the experimental results; Section 11
+                                                                                             simple operations. Specifically, we can perform accumulation in the
+      discusses the related works; Finally, Section 12 concludes this work.
+                                                                                             FXP domain within each group of partial sums, hence eliminating
+                                                                                             the power-hungry FP-Acc. Equations (4)∼(7) show that we can
+      2    BENEFITS OF THE BUCKET-BASED                                                      generate the same numerical results while reducing FP-Acc activity
+           ACCUMULATION STRATEGY                                                             by 23 (67%); additionally, only one FP-Acc is needed to reconstruct
+      We first compare the bucket-based accumulation strategy with the                       the FP partial sum back to the FP-domain. In the following section,
+      conventional FP accumulation strategy to showcase the benefits of                      we present the corresponding bucket-based accumulator.
+
+
+
+
+                                                                                    1004
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                               Y.-C. Lo et al.
+
+
+          e-bit                  m-bit                                                               INT-MAC     INT-Acc (Buckets)      FP-Acc         FP Regsiter
+                                         ⨯ ⨯           … ×g           ⨯
+                                                                                               Baseline
+           +                                          +
+                     e-LOG2(Nbuckets)                                                                                             Saves 65% of PE power
+                                                     <<                                    Bucket-based
+
+
+                    LOG2(Nbuckets)
+                                                      +                                                   0            1                    2                3
+                                                                                                                             (a) PE Power (mW)
+
+                                                    … ×N    buckets
+                                                                                               Baseline
+                  BITbucket
+                                                                                           Bucket-based
+                                                  FP-Acc
+                                                                                                          0    1000        2000      3000       4000       5000        6000
+                                                             FP                                                               (b) PE Area (𝜇M2)
+
+
+      Figure 4: BFP-PE using a bucket-based accumulator (high-                         Figure 5: (a) Bucket-based architecture (16 × 12𝑏 buckets),
+      lighted with yellow)                                                             which reduces power consumption by up to 65% (Prime-
+                                                                                       TimePX @ 500 MHz) compared to that of the baseline com-
+                                                                                       puting blocks of ResNet-18. (b) Bucket-based accumulator,
+      3    BUCKET-BASED ACCUMULATOR                                                    which reduces the area by 20% via the use of buckets. Our
+      Figure 4 shows the bucket-based accumulator and the correspond-                  following proposed approach further considers the out-of-
+      ing PE. We highlight the key modules, namely the narrow shifter                  bounds concept to mitigate the area overhead.
+      with several bucket accumulation registers, in yellow (we use 𝑁𝑏𝑢𝑐𝑘𝑒𝑡𝑠 ×
+      𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 to denote a configuration with 𝑁𝑏𝑢𝑐𝑘𝑒𝑡𝑠 buckets, and each
+      bucket has a bitwidth of 𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 in the following paragraph).                  each bucket to be responsible for 256/4 = 64 exponent values. On
+      These buckets are inserted between the MAC and FP-Acc to inde-                   the other hand, in the proposed architecture, employing 32 buckets
+      pendently accumulate the partial sums that fall into different ranges            makes each bucket handle only 256/32 = 8 exponent values.
+      of exponent values. The corresponding bucket is automatically se-                   Since increasing 𝑁𝑏𝑢𝑐𝑘𝑒𝑡𝑠 reduces 𝑁𝑒𝑥𝑝𝑜𝑛𝑒𝑛𝑡 , it reduces the bitwidth
+      lected using the MSBs of the exponent sum. Accumulation using                    required by bucket registers. In other words, it reduces the overflow
+      these buckets significantly reduces the activity of power-hungry                 possibility of buckets given the same bucket bitwdith 𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 .
+      normalization and FP-Acc, hence reducing the overall power. Specif-              However, more buckets also lead to larger area and power overhead
+      ically, Figure 5 compares the power (analyzed using PTPX) of com-                compared to that with fewer buckets.
+      puting several real BFP vectors of ResNet-18 using the baseline                     Bitwidth of each bucket (𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 ): The bitwidth of the buck-
+      BFP-PE [7] and the proposed bucket-based BFP-PE. Notably, the                    ets influences the bucket power, bucket area, and activity of the
+      bucket-based BFP-PE reduces power consumption by 65% compared                    FP-Acc unit. Specifically, increasing the bucket bitwidth reduces the
+      to the baseline BFP-PE.                                                          activity of the power-hungry FP-Acc unit at the cost of incurring
+         To better understand our proposed approach, we point out that                 larger bucket power and area overhead.
+      the relationship between the first-stage bucket accumulator and                     To determine an optimized bucket configuration in terms of area
+      second-stage FP accumulator is analogous to a level 1 (L1) cache                 and power, we perform detailed design space exploration using a
+      and a level 2 (L2) cache in classic computer systems in the following            real workload. Please refer to Figure 12 in Section 10.2 for more
+      ways:                                                                            details.
+          (1) The bucket accumulator consumes less energy than the FP
+              accumulator but may need support from the FP accumulator                 4     INTER-BUCKET CARRY PROPAGATION
+              when it encounters overflow. Similarly, the L1 cache con-                One shortcoming of bucket-based accumulators is that they still
+              sumes less energy per access but requires support from the               require significant FP-Acc activity in cases with a low hardware
+              L2 cache when the working set size exceeds its physical size.            budget. (i.e., limited bucket bitwidth 𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 and a small number
+          (2) Most of the accumulation process only involves the bucket                of buckets 𝑁𝑏𝑢𝑐𝑘𝑒𝑡 ). To address this issue, we propose inter-bucket
+              accumulator, and only a small proportion of accumulation                 carry propagation to transfer overflow between buckets and hence
+              requires the FP accumulator. Similarly, most of the memory               reduce FP-Acc activity.
+              accesses utilize the L1 cache, and only a small number of                   The naive bucket architecture and its overflow handling proce-
+              memory accesses require the L2 cache.                                    dure only consider each bucket to independently accumulate partial
+        Furthermore, two important architectural parameters are rele-                  sums in a small range of exponent values. Thus, an overflowed
+      vant to bucket-based PEs: 𝑁𝑏𝑢𝑐𝑘𝑒𝑡𝑠 and 𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 . We discuss the                bucket needs to trigger FP-Acc immediately and flush its partial
+      impact of adjusting these architectural parameters below:                        sum to maintain numerical correctness. As shown in Figure 6(a),
+        Number of buckets (𝑁𝑏𝑢𝑐𝑘𝑒𝑡𝑠 ): The number of buckets influ-                    when overflow occurs for the yellow bucket accumulator, other
+      ences the number of exponent values associated with each bucket                  buckets in gray cannot assist the yellow bucket, hence triggering
+      (𝑁𝑒𝑥𝑝𝑜𝑛𝑒𝑛𝑡 ). For example, architecture with four buckets requires               significant FP-Acc activity.
+
+
+
+
+                                                                               1005
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      Bucket Getter: A Bucket-based Processing Engine for Low-bit Block Floating Point (BFP) DNNs                 MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada
+
+
+                                (a) Baseline Overflow Handling                                          (a) Out-of-bound (OB) FP-Acc Example (IEEE-754)
+                               <<                                                                                           1.5×2! + 1.1×2"!# → 1.5×2!
+
+          Carry_out (overflow)
+                               +                        If Carry_out = 1:
+                                                           Add psumbucket to psumFP
+                                                                                                                        (b) OB-aware Static Bucket
+                                    0 1                                                                   Out-of-bound buckets                   In-bound buckets
+                                                           Reset psumbucket
+                                                        Else:
+                                          …
+                                                                                                 Exp. = -128~-125 -124~-121 -120~-117        112~115 116~119 120~123 124~127
+                                                           Accumulate to psumbucket                                                     …
+                   en                                                                               Skip adding out-of-bound
+                                 FP-Acc                  Large ActivityFP-Acc                                                                FP-Acc              Largest-value bucket
+                                                                                                        buckets to PsumFP    Psum       FP
+
+
+                           (b) Inter-bucket Carry Propagation                                     Don’t know largest-value bucket beforehand
+                                                                                                                                              → Large bucket overheads
+                        =Max? <<
+                                                        If Carry_out = 1:                         Fixed responsible exp. values for each bucket
+            Selectbucket                                   If Selectbucket = Max:
+                           1  +               +               Add psumbucket to psumFP                                 (c) OB-aware Adaptive Bucket
+             Selectbucket+1 0                                 Reset psumbucket                          No.1          No.6           No.4             No.2        No.5          No.3
+                                                           Else:
+                                                                                                       E1~ E1+3      E2~ E2+3      E3~ E3+3       E4~ E4+3      E5~ E5+3      E6~ E6+3
+                                          …       Max
+                                                        Else:
+                                                              Add to adjacent bucket
+
+                                                           Accumulate to psumbucket
+                   en                                                                                                                        FP-Acc
+                                 FP-Acc
+                                                           Low ActivityFP-Acc                                                    PsumFP
+
+                                                                                                   Only keeps top-K largest-value buckets → Reduced bucket overheads
+                                                                                                 Tracks exp. values and order for each bucket → Costly metadata & control
+      Figure 6: (a) Bucket-based accumulator and baseline over-
+      flow handling procedure. (b) The proposed inter-bucket carry                                          (d) OB-aware, Adaptive and Circular Bucket
+      propagation scheme, which adds carry-out to the adjacent                                                                          Current largest-value bucket (Emax~Emax+3)
+      bucket accumulation register and further reduces the activity                             Emax-16~ Emax-13 Emax-12~ Emax-9 Emax-8~ Emax-5 Emax-4~ Emax-1 Emax~ Emax+3 Emax-20~ Emax-17
+      of FP-Acc. This technique reduces FP-Acc activity by up to
+      86%, as shown in Figure 12.
+                                                                                                                                             FP-Acc                Front Rear
+                                                                                                                                 PsumFP
+         To reduce FP-Acc activity, we propose inter-bucket carry propa-
+      gation, as shown in Figure 6(b). We enable the bucket to propagate                            Only keeps top-K largest-value buckets → Reduced bucket overheads
+      its carry-out (i.e., overflow) to the bucket to its right when facing                             Only tracks Emax and its pointer → Small metadata & Simple control
+      overflow conditions. To support this approach, we add an additional
+      set of multiplexer and demultiplexer circuitry and the correspond-                        Figure 7: (a) Out-of-bound (OB) FP-Acc example. (b) OB-aware
+      ing right-hand bucket selection logic. This hardware support helps                        static bucket architecture. (c) OB-aware adaptive bucket. (d)
+      to add the overflow term to the designated bucket, which is shown                         OB-aware, adaptive and circular bucket architectures. We
+      as the green bucket in Figure 6(b). Please refer to the pseudocode                        denote the metadata using blue text. In general, consider-
+      for the details of the inter-bucket carry propagation control flow.                       ing out-of-bounds cases consistently reduces the PE area by
+                                                                                                21.19 ∼ 71.72%.
+      5      ADAPTIVE AND CIRCULAR BUCKETS
+      One unique and exploitable feature of FP-Acc is to skip out-of-
+      bound (OB) partial sums [1, 4, 29]. As shown in Figure 7(a), adding                           In response, Figure 7(c) shows the proposed OB-aware adaptive
+      a significantly small partial sum to the original FP partial sum does                     bucket accumulator. The high-level concept is to track the respon-
+      not affect the result in the IEEE-754 standard due to the limited                         sible exponent values for each bucket and keep only the top-K
+      output mantissa field, e.g., 1.5 × 22 + 1.1 × 2 −24 → 1.5 × 22 .                          in-bound buckets. During the execution process, we check whether
+          Figure 7(b) shows the benefits of exploiting out-of-bound FP-Acc                      the upcoming partial sum is larger than the current largest-value
+      in a static bucket accumulator. Specifically, after completing bucket                     bucket. We then check the bucket order and replace the partial sum
+      accumulation, the OB-aware static bucket architecture first iden-                         to store the largest one. For the same example in which each bucket
+      tifies the current largest-value bucket to determine in-bound and                         is responsible for four exponent values, we only need to allocate
+      out-of-bound buckets. Then, it skips adding out-of-bound buckets                          six buckets to cover the exponent values that contribute to the final
+      to the FP accumulation register to reduce FP-Acc activity. However,                       24-b mantissa of FP partial sum. In this example, our design reduces
+      since the static bucket does not know the current largest-value                           the area cost by up to 70.6%.
+      bucket beforehand and each bucket is responsible for a fixed range                            Although we significantly reduce the bucket area, this design
+      of exponent values, it still requires maintaining all of the buckets                      still requires costly metadata and complex bucket control logic. To
+      and hence yields significant area and power overhead. For exam-                           mitigate this issue, we propose organizing all in-bound buckets in
+      ple, we need to allocate 64 buckets in Figure 7(b) if each bucket is                      a circular fashion. Figure 7(d) shows the benefits of the circular
+      responsible for four exponent values.                                                     bucket approach, where we only need to memorize the position of
+
+
+
+
+                                                                                         1006
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                                      Y.-C. Lo et al.
+
+
+                         (a) FP-Acc Activity Comparison
+                                                                                                                         Fmap Buffer
+                                                                                                                                                               ⨯                    ⨯
+                     ⨯        …          ⨯            ⨯      …           ⨯                                                                                               …
+                                                                                                                                                                         +
+                              +                              +                                               PE0,0    PE0,1 … PE0,6        PE0,7     +
+                                                                                                                                                                         <<
+                                              +                                                               Shared FP-Acc        Shared FP-Acc                         +
+                 +
+
+
+
+
+                                                                                             Weight Buffer
+                           FP-Acc                            <<                                                                                                                 …
+                                                             +
+                                   High Activity                  …                                          PE1,0    PE1,1 … PE1,6        PE1,7               Emax
+                                                                                                              Shared FP-Acc        Shared FP-Acc                 MUXs
+                                                                                                                                                               manin  bitmanacc
+                                      Low Activity        FP-Acc                                                                                    Find leading 1
+
+
+
+
+                                                                                                                …
+
+
+
+
+                                                                                                                                              …
+                                                                                                                              …
+                                                                                                                                                                        ptrin
+
+                                      Area-hungry                                                                                                  manin       manacc     Exp Logic
+                                                                                                             PE7,0    PE7,1       PE7,6    PE7,7         Swap
+                                                                                                              Shared FP-Acc        Shared FP-Acc                   >>
+                                  (b) Shared FP-Acc                                                                                                        +
+                                                                                                                                                    Convert to FP
+
+                     ⨯       …          ⨯             ⨯        …         ⨯                                               Psum Buffer                            DEMUXs
+
+                             +                                 +
+            +                <<               +                <<                                               Figure 9: Bucket Getter accelerator
+                             +                                 +
+                                  …         … ✕N                     …
+                                                                                       the shared FP-Acc: 1) We add two multiplexers and one demulti-
+            Bucket Queue                  …                                            plexer to configure the input and output of the FP-Acc unit, which
+              (Optional)                          …                                    logically becomes a part of any PEs. In other words, one physical
+                                      Shared FP-Acc                                    FP-Acc can be assigned to accumulate the partial sum for the buck-
+                                                                                       ets of multiple PEs. 2) We include an option to add bucket queues
+                                              …
+                                                                                       between the bucket accumulator and the shared FP-Acc to avoid
+                                                                                       potential performance degradation if extreme workloads occur. Our
+                                                                                       empirical results (Figure 15) show that sharing one FP-Acc among
+      Figure 8: (a) FP-Acc activity comparison for the baseline and                    two PEs provides a significant area improvement for a representa-
+      bucket-based PEs. The bucket-based architecture reduces FP-                      tive workload, ResNet-18. Therefore, our final design is based on
+      Acc activity, which confirms the effectiveness of the proposed                   𝑁𝑠ℎ𝑎𝑟𝑒𝑑 = 2.
+      approach. (b) The proposed shared FP-Acc. Sharing one FP-
+      ACC across two PEs reduces the area by by 29.8%.                                 7     BUCKET GETTER ACCELERATOR
+                                                                                       Now, we integrate all of the proposed techniques to complete a
+                                                                                       Bucket Getter tile, as shown in Figure 9. First, we organize a tile
+                                                                                       as a 2D PE array to allow spatial data reuse across different PEs,
+      the front bucket and the corresponding exponent values to infer
+                                                                                       where feature map blocks are shared vertically, and weight blocks
+      the exponent ranges for other buckets. When all of the buckets are
+                                                                                       are shared horizontally. In this way, the power of SRAM accesses
+      empty and an upcoming partial sum needs to be accumulated, we
+                                                                                       is mitigated. This array configuration is also adopted in several
+      randomly select a bucket for storage and configure this bucket at the
+                                                                                       state-of-the-art papers [4, 41].
+      front of the circular queue. When there is an upcoming partial sum
+                                                                                          For each PE, we allocate a 16-unit-wide MAC and an adaptive
+      with an exponent value larger than the existing largest exponent,
+                                                                                       and circular bucket-based accumulator with inter-bucket carry
+      we let it occupy the space of the smallest bucket. We delete the
+                                                                                       propagation capability. Regarding the FP accumulator, we allow
+      smallest bucket’s partial sum if this partial sum is out-of-bound.
+                                                                                       two adjacent PEs to share an FP-Acc to reduce the area overhead.
+                                                                                       This configuration reduces the area and maintains a certain design
+      6    SHARED FLOATING-POINT                                                       margin that prevents performance degradation. Finally, the partial
+           ACCUMULATION (SHARED FP-ACC)                                                sum is accumulated using the Psum buffer.
+      One unique feature of the bucket-based architecture is the low
+      activity of the FP-Acc unit after including a bucket-based accumu-               7.1              Execution Example
+      lator. Figure 8(a) shows the activity of each accumulator, and the               Figure 10 shows the required steps to compute eight feature map
+      relative activity levels are shown. Our empirical results show that              (fmap) blocks with eight weight blocks using two bucket-based PEs
+      FP-Acc only activates in 4 ∼ 10% of the total cycle among various                in Bucket Getter, where the channel number is 64 and the block
+      workloads. The identified characteristic helps to mitigate the area              size is 16. We denote different mantissa blocks of the feature map
+      overheads of the FP-Acc unit, which occupies up to 53% of the total              as 𝛼 ∼ 𝜃 . Similarly, we denote different mantissa blocks of weights
+      PE area.                                                                         as 𝑎 ∼ 𝑙. The block-wise exponent terms are marked separately. For
+         Specifically, we propose exploiting the low activity of the FP-Acc            each PE, we allocate two buckets, where each bucket is responsible
+      module and sharing one FP-Acc module across different PEs. Fig-                  for four exponent values. In addition, we share one FP-Acc across
+      ure 8(b) shows two designated hardware modifications to enable                   two PEs and allocate a bucket queue with a depth equal to one for
+
+
+
+
+                                                                               1007
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      Bucket Getter: A Bucket-based Processing Engine for Low-bit Block Floating Point (BFP) DNNs                                                 MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada
+
+
+                   Fmap BFP Blocks                                                Weight BFP Blocks                                             (a-1) MAC-based FP-PE                (a-2) BucketGetter-enabled
+                             𝛿      ×2#            Θ ×2#                                d       ×2!          l ×2"%                               Ef15Ew15                            Ef Ew        Mf Mw
+                                                                                                                                                                 Mf15Mw15
+                       𝛾            #        η              #                     c             "#       k                                      Ef0Ew0         Mf0 Mw0
+                        ×2       ×2                                           ×2                              ×2"$                                                                                     ⨯
+                   β                                               ●                                                                                                                    +
+                      ×2"# ζ ×2"#                                        b ×2"%   j ×2"$                                                                        ⨯                                      <<
+                                                                                                                                                                                                       +
+           ⍺       ×2!    𝜺 ×2"#                                       a ×2"%   i ×2!                                                            +           FP-Acc                                         …
+                   PE0 (a) Cycle 1               PE1                          PE0 (b) Cycle 2                PE1                                                            ✕16
+
+
+
+
+                                                                                                                                                                       …
+          ⍺⨯a              0 + -3        ⍺⨯ i             0+0          β ⨯b           -1 + -3        β ⨯ j       -1 + -2                                                                           Shared FP-Acc
+                                                                                                                                             (Google TPU, IBM Telum)
+           2⍺a                                             ⍺i          2⍺a+βb                          2βj          ⍺i
+           Emax=-4                                        Emax=0       Emax=-4                                     Emax=0                (b-1) Adder-tree-based FP-PE               (b-2) BucketGetter-enabled
+                           Shared FP-Acc                                              Shared FP-Acc                                                                                           Mf0Mw0            Mf15Mw15
+                                                                                                                                    Ef0Ew0 Ef15Ew15 Mf0Mw0     Mf15Mw15 Ef0Ew0 Ef15Ew15        ⨯         16
+                                                                                                                                                                                                        ✕…          ⨯
+                                                                                                                                      +       +            ✕16            +       +
+                             (c) Cycle 3                                                (d) Cycle 4                                      …           ⨯      …          ⨯            …                  Aligner
+                   PE0                           PE1                          PE0                            PE1
+                                                                                                                                      Max Exp                Aligner              Max Exp                   +
+          𝛾 ⨯c             1 + -1        𝛾 ⨯k             1 + -2       𝛿 ⨯d           1+ 0           𝛿 ⨯ l         1 + -2
+                                                                                                                                                               +                                         <<
+          2⍺a+βb            𝛾c          2βj+8𝛾k            ⍺i          2⍺a+βb         𝛿d+𝛾c      2βj+8𝛾k+8𝛿l        ⍺i                                                                                   +
+                                                                                                                                                             FP-Acc                                             …
+                           Emax=0                         Emax=0                      Emax=0                       Emax=0
+                           Shared FP-Acc                                              Shared FP-Acc
+                                                                                                                                        (Samsung Mobile NPU of ISSCC’22)                           Shared FP-Acc
+
+
+                   PE0 (e) Cycle 5               PE1                          PE0 (f) Cycle 6                PE1
+                                                                                                                                   Figure 11: (a-1) MAC-based FP-PE and (a-2) its BucketGetter-
+          ε ⨯a             0 + -3        ε ⨯ i            1 + -2       𝛇 ⨯b           1+ 0           𝛇 ⨯ j         1 + -2
+                                                                                                                                   enabled design. (b-1) Adder-tree-based FP-PE and (b-2) its
+            2εa            𝛿d+𝛾c        2βj+8𝛾k             εi         2εa+βb                          2𝛇j          εi
+                                                                                                                                   BucketGetter-enabled design.
+            Emax=0                                        Emax=0         Emax=0                                    Emax=0
+                           Shared FP-Acc                                              Shared FP-Acc
+
+           (2⍺a+βb)⨯2-4                                                                                   ⍺i⨯20
+
+                   PE0 (g) Cycle 7               PE1                          PE0 (h) Cycle 8                PE1                   of accumulations is completed. Please note that these two phases
+          η ⨯c             0 + -1        η ⨯k             1 + -2       Θ⨯d            1+ 0           Θ⨯ l          1 + -2          can be performed in parallel without stalling each other.
+            2εa             ηc           2𝛇j+8ηk            εi         2εa+βb         Θd+ηc      2𝛇j+8ηk+8Θl        εi
+                                                                                                                                       Initially, the PE accumulators are empty. In cycle 1, two PEs
+                           Emax=0                         Emax=0                       Emax=0                      Emax=0          multiply fmap block 𝛼 by weight blocks 𝑎 and 𝑖 to produce corre-
+                           Shared FP-Acc                                              Shared FP-Acc                                sponding partial sums, 𝛼𝑎 and 𝛼𝑖, respectively. The partial sum 𝛼𝑎
+               (𝛿d+𝛾c)⨯20                                                                                  ⍺i⨯20
+                                                                                                                                   of 𝑃𝐸 0 is scaled by 2 (left shift 1 bit) because its exponent sum is -3
+           +(2⍺a+βb)⨯2-4
+                                              ⍺i⨯20                                                  +(2βj+8𝛾k+8𝛿l)⨯2-4            and has to be stored in the bucket that is responsible for exponents
+                                                                       Mantissa multiplier                                         of −4 ∼ −1. 𝐸𝑚𝑎𝑥 is set to -4, and we set the left bucket as the
+                   PE0 (i) Cycle 9~12 PE1                              Exponent adder                                              current largest-value bucket. For 𝑃𝐸 1 , the partial sum 𝛼𝑖 does not
+               ⨯             +              ⨯               +
+                                                                                                                                   need to be scaled because the exponent sum equals the lower bound
+           2εa+βb          Θd+ηc        2𝛇j+8ηk+8Θl         εi         Adaptive& Circular bucket accumulator
+                                                                                                                                   of the bucket. Then, we randomly select the right-hand bucket as
+           Emax=4                                          Emax=0      Largest bucket pointer and its exponent
+                            Shared FP-Acc
+                                                                                                                                   the current largest-value bucket and set 𝐸𝑚𝑎𝑥 to 0.
+                                                                       Bucket queue
+                                                                                                                                       In cycle 2, we multiply fmap block 𝛽 by weight blocks 𝑏 and 𝑗 to
+               (Θd+ηc)⨯20                       εi⨯2  0
+                                                                       FP register                                                 produce partial sums, 𝛽𝑏 and 𝛽 𝑗, respectively. 𝑃𝐸 0 accumulates the
+           +(2εa+βb)⨯2-4                 +(2𝛇j+8ηk+8Θl)⨯2-4
+                                                                                                                                   partial sum 𝛽𝑏 using its left-hand bucket. 𝑃𝐸 1 scales 𝛽𝑏 by 2 (left
+                                                                                                                                   shift 1 bit) and accumulates the partial sum to the left-hand bucket,
+      Figure 10: Cycle-by-cycle execution example of computing                                                                     which is responsible for exponent values of −4 ∼ −1.
+      eight feature map blocks and eight weight blocks with two                                                                        In cycle 3, the same procedure is used. The only difference is
+      bucket-based PEs. We highlight the activated modules and                                                                     that the upcoming partial sum 𝛾𝑐 of 𝑃𝐸 0 yields a larger exponent
+      data path using blue.                                                                                                        value than that for the current bucket; i.e., 0 is greater than -1. Thus,
+                                                                                                                                   we move the largest bucket pointer to the right-hand bucket and
+                                                                                                                                   adjust the corresponding exponent value 𝐸𝑚𝑎𝑥 . Finally, the first four
+      each PE. An FP-Acc task is assumed to be completed using one                                                                 blocks complete their partial sum computation and accumulation
+      MAC cycle in this example.                                                                                                   processes in cycle 4.
+         Here, we recap that there are two main phases of computation                                                                  In cycle 5, the upper part of two PEs multiplies fmap block 𝜖
+      involved: bucket-based accumulation and MAC reconstruction. The                                                              belonging to different pixel positions, again by weight blocks 𝑎 and
+      former phase accumulates the partial sum using bucket accumula-                                                              𝑖, to produce corresponding partial sums, 𝜖𝑎 and 𝜖𝑖, respectively.
+      tors and significantly reduces the power. The latter phase includes                                                          These partial sums are required to be stored in empty buckets. Thus,
+      dumping accumulated partial sums from the bucket accumulators                                                                the old buckets have to be flushed to the FP accumulator. The shared
+      to the FP accumulator, which is only triggered when bucket over-                                                             FP-Acc is configured to flush the partial sum of the left-hand bucket
+      flow is encountered for the largest-value bucket or when a group                                                             in 𝑃𝐸 0 , which frees up space for the upcoming partial sum. Since
+
+
+
+
+                                                                                                                            1008
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                       Y.-C. Lo et al.
+
+
+      the shared FP-Acc is busy, 𝑃𝐸 1 flushes the partial sum to the bucket                                               Table 1: Studied models
+      queue and frees up its register for the upcoming partial sum.
+         Similarly, in cycles 6∼8, the new partial sums are computed and                                   Model                   Application           Dataset
+      the previous partial sums are simultaneously flushed to the FP                                 ResNet-18 (Res-18)       Image Classification      ImageNet
+      accumulator. After all pixel computations are complete, we clean                               ResNet-50 (Res-50)       Image Classification      ImageNet
+      up the registers and reconstruct the FP partial sum in cycles 9∼12.                          MobileNet-v1 (Mb-v1)       Image Classification      ImageNet
+      Please note that the cycle overhead for cleaning up the buckets is                           MobileNet-v2 (Mb-v2)       Image Classification      ImageNet
+      insignificant because modern DNN workloads involve many input                                ShuffleNet-v2 (Sh-v2)      Image Classification      ImageNet
+      pixels. We can even hide the corresponding cycle overhead if we                             Vision Transformer (ViT)    Image Classification      ImageNet
+      compute the next layer in parallel.                                                                   GPT-2          Natural Language Inference    WebText
+
+      8    EXTENSION TO FLOATING-POINT PES
+      We emphasize that the proposed bucket-based accumulator and
+      optimizations can be easily integrated into FP processing engines                                          Current State-of-the-art Trade-off Point
+                                                                                      100
+      (FP-PE), which further broadens this work’s impact. We showcase                                                       Baseline
+
+
+
+
+                                                                                         Normalized FP-Acc Activity (%)
+                                                                                       90          8✕8b                     Static bucket
+      how to integrate our proposed approach into state-of-the-art FP-                                                      Static bucket w/ Inter-bucket prop
+                                                                                       80                                   Adaptive bucket w/ Inter-bucket prop
+      PEs [1], which do not share an exponent across a block of mantissa                                 16✕8b
+                                                                                       70
+      words.                                                                                 NBUCKETS✕BITBUCKET
+         Figure 11(a) shows the MAC-based FP-PE and its corresponding                  60
+      BucketGetter-enabled design. The MAC-based FP-PE multiplies                      50
+      two operands and accumulates the partial sum using an FP-Acc, an                 40
+      approach adopted by IBM Telum AI processor [2, 47] and Google                    30                                   16✕12b
+      TPU [19]. Furthermore, we show that it is straightforward to insert              20
+      a bucket accumulator between the multiplier and FP-Acc.                                  64✕4b            64✕4b 64✕6b           16✕16b
+                                                                                       10
+         Figure 11(b) shows an adder-tree-based FP-PE and the corre-
+                                                                                        0        128✕4b                    32 ✕ 8b
+      sponding bucket-based architecture. The adder-tree-based FP-PE
+                                                                                          3000        4000         5000             6000              7000     8000
+      first multiplies 16 mantissas and aligns their partial products with better
+                                                                                                                    PE Area (μm2)
+      the per-vector maximum exponent value. It then utilizes an FP-
+      Acc to generate an updated version of the FP partial sum. This
+      architecture enables high performance and is utilized in Samsung’s          Figure 12: Design space exploration to find the optimized
+      flagship mobile SoC [36]. Similarly, we show that it is easy to insert      configuration for the optimal trade-off between the PE area
+      a bucket-based accumulator to reduce power consumption.                     and normalized FP-Acc activity
+
+      9    POTENTIAL IMPACT
+      The proposed Bucket Getter schemes can generally improve the
+      area and energy efficiency for BFP or FP PEs without approximation,                   BFP configurations: We choose state-of-the-art MSFP as our
+      supporting integration with numerous DNN accelerators. Since FP                   baseline method. If not specified, we utilize MSFP-11 (1s2m8e) in
+      and BFP can be utilized during both the training phase [8, 20]                    our evaluation. We adopt pretrained FP32 checkpoints and directly
+      and the inference phase [7, 46], our schemes have the potential                   apply post-training BFP quantization to obtain low-bit models. We
+      to improve the efficiency for both phases of DNNs. Specifically,                  follow the suggestions of Microsoft [7] and set the block size to
+      we perform PrimeTimePX power analysis using an actual pattern                     16. Furthermore, we perform additional experiments on MSFP-
+      when training a ResNet and find that the bucket-based accumulator                 11 (1s2m8e), MSFP-12 (1s3m8e), MSFP-13 (1s4m8e), and MSFP-14
+      reduces the PE power by 45.9%, which shows promising potential                    (1s5m8e). Note that both the hardware and software implementa-
+      for training.                                                                     tions were based on those in the original MSFP [7, 10] paper.
+                                                                                            Hardware modeling: We implement all architectures using Ver-
+      10 EVALUATION                                                                     ilog and synthesize them using TSMC 40-nm technology with the
+                                                                                        Synopsys Design Compiler (topographical mode). We synthesize
+      10.1 Experimental Setup                                                           all designs with a 500 MHz clock frequency and verify them using
+      DNN workloads: We perform experiments on seven representa-                        real test patterns. We utilize PrimeTimePX with real ResNet-18
+      tive DNNs: ResNet-18 (Res-18), ResNet-50 (Res-50), MobileNet-v1                   test patterns to analyze the module-wise power. We then imple-
+      (Mb-v1), MobileNet-v2 (Mb-v2), ShuffleNet-v2 (Sh-v2), Vision Trans-               ment a simulator extending the PyTorch framework to analyze the
+      former (ViT), and GPT-2. These workloads cover traditional clas-                  module-wise activity. Regarding the simulator, we extend PyTorch’s
+      sifiers, lightweight classifiers, transformer-based classifiers, and              convolution and matrix multiplication procedure and employ vari-
+      transformer-based text generation. We list the applications and                   ables to model the bucket accumulators. We employ some additional
+      datasets of these models in Table 1. Among them, many models                      statistical variables to track the module-wise activities. Finally, the
+      (e.g., ResNet, MobileNet, and GPT) are also used by the industry-                 module-wise power analysis is combined with the simulator activity
+      standard MLPerf benchmark [39].                                                   information to obtain energy estimates.
+
+
+
+
+                                                                               1009
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      Bucket Getter: A Bucket-based Processing Engine for Low-bit Block Floating Point (BFP) DNNs                                                                                                                                                                                           MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada
+
+
+                                                                                                                                        FP-Acc                           INT-Acc (Bucket)                                                         INT-Acc (Bucket Carry-prop)
+        Normalized Activity (%)
+
+
+                                  100
+                                  80
+                                  60
+                                  40
+                                  20
+                                   0
+                                                              Static+Prop.
+
+
+
+
+                                                                                                                       Static+Prop.
+
+
+
+
+                                                                                                                                                                                   Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                               Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                           Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                         Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                        Static+Prop.
+                                         Baseline
+
+
+
+
+                                                                                             Baseline
+
+
+
+
+                                                                                                                                                        Baseline
+
+
+
+
+                                                                                                                                                                                                                    Baseline
+
+
+
+
+                                                                                                                                                                                                                                                                                Baseline
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                             Baseline
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                            Baseline
+                                                                              Adap.+Prop.
+
+
+
+
+                                                                                                                                         Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                    Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                             Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                           Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                          Adap.+Prop.
+                                                     Static
+
+
+
+
+                                                                                                         Static
+
+
+
+
+                                                                                                                                                                    Static
+
+
+
+
+                                                                                                                                                                                                                                Static
+
+
+
+
+                                                                                                                                                                                                                                                                                            Static
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                          Static
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                         Static
+                                                       Res-18                                              Res-50                                                      Mb-v1                                                      Mb-v2                                                        Sh-v2                                                                ViT                                                      GPT-2
+
+                                                                                             Figure 13: Accumulator activity breakdown for seven representative models
+
+                                                                                                            INT-MAC                                            INT-Acc (Bucket accumulator)                                                                                          FP-Acc                                  FP Register
+        Normalized Energy (%)
+
+
+
+
+                                  100
+                                  80
+                                  60
+                                  40
+                                  20
+                                   0
+                                                               Static+Prop.
+
+
+
+
+                                                                                                                         Static+Prop.
+
+
+
+
+                                                                                                                                                                                     Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                 Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                              Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                            Static+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                           Static+Prop.
+                                         Baseline
+
+
+
+
+                                                                                              Baseline
+
+
+
+
+                                                                                                                                                         Baseline
+
+
+
+
+                                                                                                                                                                                                                     Baseline
+
+
+
+
+                                                                                                                                                                                                                                                                                 Baseline
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                               Baseline
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                              Baseline
+                                                     Static
+
+
+
+
+                                                                               Adap.+Prop.
+
+
+
+
+                                                                                                                                          Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                      Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                  Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                               Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                              Adap.+Prop.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                             Adap.+Prop.
+                                                                                                         Static bkt.
+
+
+
+
+                                                                                                                                                                     Static bkt.
+
+
+
+
+                                                                                                                                                                                                                                 Static bkt.
+
+
+
+
+                                                                                                                                                                                                                                                                                             Static bkt.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                           Static bkt.
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                          Static bkt.
+                                                       Res-18                                              Res-50                                                        Mb-v1                                                        Mb-v2                                                           Sh-v2                                                              ViT                                               GPT-2
+
+                                                    Figure 14: Normalized energy comparison of different schemes based on seven representative models
+
+
+      10.2                              Determining the Optimized Bucket Setup                                                                                                                                                                 and finding a suitable bucket configuration is important. In this
+      Figure 12 shows the design space exploration of different techniques                                                                                                                                                                     work, for fair comparisons, we choose a configuration correspond-
+      and configurations. Specifically, we sweep the bitwidth of the bucket                                                                                                                                                                    ing to the elbow trade-off point if the resulting PE area does not
+      𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 and the number of buckets 𝑁𝑏𝑢𝑐𝑘𝑒𝑡𝑠 to find the trade-off                                                                                                                                                                       exceed the baseline. Otherwise, we select a configuration that is
+      point between PE area and FP-Acc activity based on inference with                                                                                                                                                                        closest to the elbow trade-off point and has comparable area to the
+      ResNet-18. We denote the baseline as a red rectangle and label the                                                                                                                                                                       baseline. Specifically, we set the bucket configurations for the static
+      bucket-based architecture using blue dots. Specifically, light blue                                                                                                                                                                      bucket-based architecture, inter-bucket carry propagation architec-
+      represents the static bucket architecture, and dark blue indicates                                                                                                                                                                       ture, and adaptive-circular bucket architecture to be 16 × 8𝑏, 64 × 4𝑏,
+      adaptive and circular buckets. For each bucket-based architecture,                                                                                                                                                                       and 128 × 4𝑏, respectively.
+      we mark its configuration as 𝑁𝑏𝑢𝑐𝑘𝑒𝑡 × 𝐵𝐼𝑇𝑏𝑢𝑐𝑘𝑒𝑡 𝑏. We highlight
+      the Pareto frontiers with dotted lines. The solution in the lower-left                                                                                                                                                                   10.3                             Accumulation Activity Breakdown
+      corner is the most ideal one, as it achieves the fewest number of                                                                                                                                                                        Figure 13 shows the normalized activity of accumulators, namely,
+      FP-Acc actions with the smallest PE area.                                                                                                                                                                                                FP-Acc, INT-Acc, and INT-Acc (inter-bucket carry propagation).
+         The first takeaway is that the Pareto frontiers consistently move                                                                                                                                                                     We summarize the accumulator activity for seven representative
+      toward the ideal corner for different optimizations, i.e., static bucket-                                                                                                                                                                models. In brief, the static bucket-based architecture transforms
+      based architecture, inter-bucket carry propagation, and adaptive-                                                                                                                                                                        more than 50% of the FP-Acc activities to INT-Acc. Inter-bucket
+      circular bucket architecture. If we compare FP-Acc activity under                                                                                                                                                                        carry propagation further reduces the percentage of FP-Acc activity
+      iso-area conditions, we find that static bucket architecture (16 ×                                                                                                                                                                       to less than 30% of that in the initial case. Finally, the adaptive
+      8𝑏) reduces the FP-Acc activities by 25%. Then, inter-bucket carry                                                                                                                                                                       bucket architecture achieves a similar level of FP-Acc activity as
+      propagation additionally reduces the number of FP-Acc activities by                                                                                                                                                                      that in the static bucket case, where the former is associated with
+      86%. Finally, the adaptive and circular bucket architecture reduces                                                                                                                                                                      lower bucket area overhead.
+      the number of FP-Acc activities by 66% compared to that in the                                                                                                                                                                              Let us further compare accumulator activity across different
+      static bucket architecture case with inter-bucket carry propagation.                                                                                                                                                                     models. First, we show that the activity profiles are similar among
+         The second takeaway is that different optimizations yield signif-                                                                                                                                                                     ResNet-based models. One potential rationale for this observation
+      icantly different trade-off profiles. For example, the static bucket                                                                                                                                                                     is that these networks obtain similar MAC characteristics since
+      architecture produces an elbow point with a 16 × 12𝑏 configura-                                                                                                                                                                          they are in the category of traditional DNNs and involve similar
+      tion, and inter-bucket carry propagation produces a sweep point                                                                                                                                                                          network architecture. Traditional DNNs contain high redundancy
+      configuration with 32 × 8𝑏. Therefore, performing a simulation                                                                                                                                                                           and do not fully utilize the dynamic range of MAC. Second, there is
+
+
+
+
+                                                                                                                                                                                                                       1010
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                                                                              Y.-C. Lo et al.
+
+
+                          5000
+                                                          INT-MAC                                                                   100%
+
+
+
+
+                                                                                                           Normalized Performance
+                                                          INT-Acc (Bucket Accumulator)
+                          4000
+                                     ✓                    FP-Acc
+                  (μm2)
+
+
+
+
+                                                                                                                                    95%
+                          3000
+           Area (um^2)
+
+
+
+
+                          2000
+        PE Area
+
+
+
+
+                                                                                                                                    90%
+                                                                                                                                                                                    Number of PEs sharing a FP-Acc
+                          1000                                                                                                                                                               1            2          3
+                                                                                                                                    85%
+                            0                                                                                                              0         2      4        6          8         10         12         14           16
+                                 1   2      3       4      5       6       7       8                                                                                Bucket Queue Depth
+                                         Number of PEs sharing a FP-Add
+                                                                                                Figure 16: Normalized performance on the first layer of
+      Figure 15: PE area with different numbers of PEs sharing an                               ResNet-18 with different numbers of PEs sharing an FP-Acc.
+      FP-Acc (shared FP-Acc).                                                                   A small bucket queue significantly reduces the performance
+                                                                                                overheads.
+      a noticeable difference between traditional and lightweight models
+      in terms of accumulator activity. Specifically, lightweight models
+      produce a larger MAC dynamic range than conventional models                                                                              INT-MAC     Bucket        FP-Acc        FP Register        TFLOPs/mm
+                                                                                                                                                                                                          TFLOPs/mm22
+                                                                                                                                                                                                                      5.2
+
+
+
+
+                                                                                                                                                                                                                                 Area Efficiency (TFLOPs/mm2)
+      and hence more FP-Acc activity. Furthermore, ViT shows a similar                                                5000
+                                                                                                                                                                                                                             4.8
+      profile as ResNets, which is because of the high model redundancy                                               4000
+
+
+
+                                                                                                PE Area (μm2)
+      like conventional DNNs. Finally, GPT-2 produces an even larger                                                                                                                                                         4.4
+                                                                                                                      3000
+      MAC dynamic range, hence increasing the activity of FP-Acc. This                                                                                                                                                       4
+      is potentially because of the large weight dynamic range [46].                                                  2000                                                                                                   3.6
+                                                                                                                      1000                                                                                                   3.2
+      10.4                   Computation Energy Comparison                                                                          0                                                                                        2.8
+                                                                                                                                          Baseline       Static         Static           Adaptive           Adaptive
+      Figure 14 presents the normalized energy breakdown of 7 repre-                                                                                              w/ Inter-bkt Prop. w/ Inter-bkt Prop. w/ Inter-bkt Prop.
+                                                                                                                                                         Bucket                                         w/ Shared FP-Acc
+      sentative models based on three schemes. In general, the static
+      bucket-based architecture transforms some FP-Acc to INT-Acc and
+      achieves lower energy use than that in the baseline. Specifically,                        Figure 17: PE area reduction and area efficiency of different
+      it reduces ∼ 20% of the energy required for ResNet-18 and GPT-2,                          schemes
+      respectively. However, the static bucket architecture does not show
+      energy reductions for MobileNet-v2, ShuffleNet-v2, and ViT for the
+      following reasons: 1) We limit our static bucket-based architecture
+      to utilize baseline-comparable PE area, which inevitably exclude
+                                                                                                5% performance degradation, which can be further reduced with
+      the most energy-efficient bucket and bitwidth configurations, and
+                                                                                                the help of a bucket queue or an increased number of buckets.
+      2) The large MAC dynamic range of these DNNs triggers too many
+      FP-Acc activities due to bucket overflow. Inter-bucket carry propa-
+      gation addresses the issue and further reduces the activity of FP-Acc,                    10.6                                    PE Area Breakdown Comparison
+      with comparable areas. Specifically, this approach consistently re-                       We show the area breakdown comparison of different schemes
+      duces the energy among all of the models by 5 ∼ 40%. Finally, the                         (with optimized bucket setups determined in Section 10.2) and their
+      adaptive circular bucket architecture achieves the lowest power                           corresponding iso-area speedup trends in Figure 17. This analysis
+      among all schemes because the power overhead for the bucket accu-                         clearly shows the source of area reduction. First, the static bucket
+      mulator is further reduced. Specifically, the energy is decreased by                      design (2𝑛𝑑 bar) and static bucket design with inter-bucket carry
+      23 ∼ 57% across all models. We emphasize that energy reduction is                         propagation (3𝑟𝑑 bar) incur some area overhead due to the inser-
+      achieved while maintaining the same level of numerical precision.                         tion of the bucket accumulator. Notably, the areas of MAC and
+                                                                                                FP-Acc are reduced since the bucket register acts as a pipeline stage
+      10.5                   Area Reduction with Shared FP-Acc                                  separating MAC and FP-Acc circuitry, hence reducing the critical
+      Figure 15 analyzes the area benefit of the proposed shared FP-                            path and circuit area. Second, for the adaptive bucket design with
+      Acc scheme, where multiple PEs share one FP-Acc. We sweep the                             inter-bucket carry propagation (4𝑡ℎ bar), the bucket area overhead
+      number of PEs sharing one FP-Acc and correspondingly present the                          is significantly reduced since we only have to retain top-K buckets.
+      PE area. We find that sharing one FP-Acc across 2 or 3 PEs reduces                        Finally, the adaptive bucket design with inter-bucket propagation
+      the area by 30% and 37%, respectively. Sharing across more PEs                            and shared FP-Acc (5𝑡ℎ bar) further reduces the area overhead of
+      only yields marginal area benefits, while the risk of performance                         FP-Acc since we share one FP-Acc among two PEs. In summary,
+      degradation increases. Therefore, we suggest and adopt sharing                            the proposed schemes reduce the PE area by up to 33%, hence im-
+      across two PEs in our final design. Figure 16 shows the performance                       proving the iso-area speedup by 1.47×. We emphasize that this area
+      impact of sharing an FP-Acc across multiple PEs based on ResNet-                          improvement is achieved in conjunction with significant energy
+      18. The results show that sharing across two PEs incurs a less than                       savings.
+
+
+
+
+                                                                                         1011
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      Bucket Getter: A Bucket-based Processing Engine for Low-bit Block Floating Point (BFP) DNNs                                                       MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada
+
+
+                        12000                                                                                                                         INT-MAC        Bucket accumulator                        FP-Acc       FP Register
+                                   INT-MAC                Bucket accumulator                                                               4000                                                       3
+                        10000      FP-Acc                 FP Register                                                                      3500
+
+
+
+
+                                                                                                                                                                                     PE Power (mW)
+                                                                                                                                                                                                     2.5
+
+
+
+
+                                                                                                                           PE Area (μm2)
+        PE Area (μm2)
+
+
+
+
+                                                                                                                                           3000                     32%
+                         8000                                                                                                                                                                         2
+                                                                                                                                           2500
+                                                                                                                                           2000                                                      1.5                    81%
+                         6000
+                                                                                                                                           1500                                                       1
+                         4000                                                                                                              1000
+                                                                                                                                            500                                                      0.5
+                         2000                                                                                                                 0                                                       0
+                            0                                                                                                                        MAC-based   Bucket-enabled                              MAC-based Bucket-enabled
+                                  Baseline   Ours    Baseline   Ours    Baseline   Ours       Baseline    Ours                                         FP-PE (a-1)                                             FP-PE (a-2)
+                                                                                                                                     12000                                                           10
+                                 MSFP-11 (1s2m8e)
+                                 (1s2m8e)           MSFP-12 (1s3m8e)
+                                           (1s2m8e) (1s3m8e)  (1s3m8e) MSFP-13
+                                                                       (1s4m8e) (1s4m8e)
+                                                                                 (1s4m8e)    MSFP-14
+                                                                                             (1s5m8e) (1s5m8e)
+                                                                                                        (1s5m8e)
+                                                                                                                                                                    17%
+
+
+
+
+                                                                                                                                                                                     PE Power (mW)
+                                                                                                                                     10000
+
+
+
+
+                                                                                                                           PE Area (μm2)
+                                                                                                                                                                                                      8
+
+      Figure 18: PE area comparison for the baseline BFP-PE and                                                                            8000
+                                                                                                                                                                                                      6
+                                                                                                                                                                                                                            61%
+                                                                                                                                           6000
+      bucket-based BFP-PE with different MSFP configurations                                                                                                                                          4
+                                                                                                                                           4000
+                                                                                                                                           2000                                                       2
+                                 Fmap Mantissa Buffer
+                                                                        Component           Area (mm2)    %                                   0                                                       0
+                                                                         Processing Engine Breakdown                                               Adder-tree-based Bucket-enabled                         Adder-tree-based Bucket-enabled
+                                                                                                                                                        FP-PE (b-1)                                             FP-PE    (b-2)
+                                                                          INT-MAC            0.00120     38.8
+                                                                    Bucket Accumulator       0.00064     20.7
+                                 Fmap Exponent Buffer                      FP-Acc            0.00110     35.5
+                                                                                                                          Figure 20: (a-1) Area and (a-2) power comparison of a BF16
+                                                                         FP Register         0.00015      4.9
+                PE Array
+
+
+
+
+                                  Partial Sum Buffer                        Total            0.00309     100
+                                                                                                                          MAC-based FP-PE and its bucket-enabled counterpart. (b-1)
+                                                                            Bucket Getter Breakdown                       Area and (b-2) power comparison of a BF16 adder-tree-based
+                                 Weight Exponent Buffer
+                                                                        PE Array (8x8)        0.199      33.1             FP-PE and its bucket-enabled counterpart
+                                                                    Fmap Buffer (28 KB)       0.184      30.6
+                                                                    Weight Buffer (28 KB)     0.184      30.6
+                                                                     Psum Buffer (4 KB)       0.034       5.6
+                                                                    Total (w/ Clock Tree)     0.602      100              10.9                    Area and Power Reduction for FP-PEs
+                                Weight Mantissa Buffer
+                                                                                                                          In Figure 11, we show that our proposed architecture can be easily
+      Figure 19: Layout image of Bucket Getter and the correspond-                                                        integrated with commercial MAC-based FP-PEs [2, 19] and adder-
+      ing area breakdown                                                                                                  tree-based FP-PEs [18]. We synthesize these designs and analyze
+                                                                                                                          their power with PrimeTimePX using actual patterns. Figure 20(a-1)
+                                                                                                                          and Figure 20(a-2) show the area and power of a MAC-based FP-
+      10.7                      Area of Different Mantissa Bitwidth                                                       PE and the Bucket Getter MAC-based FP-PE. The proposed design
+                                                                                                                          reduces the PE area by 32% and reduces the power by 81%. Since
+      Figure 18 analyzes the area of the state-of-the-art BFP-PEs and the
+                                                                                                                          the power contribution of FP-Acc is significant for the MAC-based
+      bucket-based BFP-PEs with different MSFP configurations, MSFP-
+                                                                                                                          FP-PE, we can reduce this proportion of power and significantly
+      11 (1s2m8e), MSFP-12 (1s3m8e), MSFP-13 (1s4m8e), and MSFP-14
+                                                                                                                          reduce the overall PE power.
+      (1s5m8e). The first takeaway is that our PE architecture consistently
+                                                                                                                             Figure 20(b-1) and Figure 20(b-2) show the area and power of an
+      achieves a lower area than that of the baseline PEs. The second
+                                                                                                                          adder-tree-based FP-PE and its bucket-enabled counterpart. Specifi-
+      takeaway is that the area benefits increase as the mantissa bitwidth
+                                                                                                                          cally, in the proposed design, the PE area is reduced by 17%, and the
+      increases, with 1.46 ∼ 2.84× iso-area speedup. We note that the
+                                                                                                                          power is reduced by 61%. The limited area gain is because of the
+      benefits of our architecture are associated with two main factors:
+                                                                                                                          significant area overhead associated with INT-Mult, alignment, and
+      1) the shared FP-Acc reduces the FP-Acc area, and 2) the MAC area
+                                                                                                                          the large adder tree. Note that our proposed approach is efficient
+      is reduced by inserting a bucket accumulator between the MAC
+                                                                                                                          because FP-Acc contributes significantly to the PE power.
+      circuitry and the FP-Acc, which reduces the critical path for the
+      MAC circuitry in both units.
+                                                                                                                          11 RELATED WORKS
+      10.8                      Chip Layout and Area Breakdown                                                            11.1 Efficient Datatypes for DNNs
+      Figure 19 shows an image of the layout of the proposed Bucket                                                       The first category of related works customize FP numbers, which
+      Getter architecture (Figure 9) using the TSMC 40-nm process. We                                                     optimizes the configuration of floating point for DNNs [9, 11, 46].
+      highlight several important modules: the mantissa buffer, exponent                                                  For example, NVIDIA has deployed TensorFloat (1s10m8e) on A100
+      buffer, partial sum buffer, and 8 × 8 PE array. Then, we summarize                                                  GPUs [33], and Google has proposed Brain Floating Point (1s7m8e)
+      the corresponding area breakdown in the right-hand table. Notably,                                                  (BF16) [20] for their TPU accelerator [19], as also adopted by the
+      each PE occupies 0.00309 𝑚𝑚 2 of area, where the MAC, bucket                                                        IBM Telum accelerator [2], and Samsung mobile DNN accelera-
+      accumulator, FP-Acc, and FP registers occupy 0.00120 𝑚𝑚 2 , 0.00064                                                 tor [18, 36]. However, customized FP architectures still incur a large
+      𝑚𝑚 2 , 0.00110 𝑚𝑚 2 , and 0.00015 𝑚𝑚 2 of area, respectively. The chip                                              amount of FP-Acc activity, which limits their energy efficiency.
+      occupies an area of 0.602 𝑚𝑚 2 , and the 8 × 8 PE array occupies                                                       Another datatype involves BFP format, and a shared exponent is
+      33.1% of the total area. The remaining area is occupied by buffers                                                  used to scale a vector of mantissas [5, 8, 43–45, 50]. Microsoft has
+      for the feature map (fmap), weights, and partial sums.                                                              demonstrated that most models require only a 3∼5b mantissa to
+
+
+
+
+                                                                                                                   1012
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                             Y.-C. Lo et al.
+
+
+      achieve FP32-comparable accuracy [7, 10]. In the Lake Crest accel-               the NSTC under grants 111-2823-8-007-001 and 112-2218-E-007-012,
+      erator, Intel has utilized a similar number format, Flexpoint [21].              the MOE under grant 112QR001N4, the Synopsys Fellowship, and
+      Recently, some papers have proposed 2-stage scaling [6, 40] and low-             the NSTC Fellowship.
+      bit FP scaling [25] to further improve BFP computation. Although
+      the BFP format can successfully reduce the memory footprint and                  REFERENCES
+      overhead, power-hungry FP-Acc is needed to accumulate partial                     [1] Hamzah Abdelaziz, ali shafiee, Jong Hoon Shin, Ardavan Pedram, and Joseph
+      sums [7]. In response, our Bucket Getter is the first to target the                   Hassoun. 2021. Rethinking Floating Point Overheads for Mixed Precision DNN
+                                                                                            Accelerators. In Proceedings of Machine Learning and Systems, A. Smola, A. Di-
+      issue of power-hungry FP-Acc and successfully transform most of                       makis, and I. Stoica (Eds.), Vol. 3. 223–239. https://proceedings.mlsys.org/paper/
+      the inefficient FP-Acc activities to INT-Acc activities using bucket                  2021/file/5f93f983524def3dca464469d2cf9f3e-Paper.pdf
+      accumulators.                                                                     [2] Ankur Agrawal, Sae Kyu Lee, Joel Silberman, Matthew Ziegler, Mingu Kang,
+                                                                                            Swagath Venkataramani, Nianzheng Cao, Bruce Fleischer, Michael Guillorn,
+                                                                                            Matthew Cohen, Silvia Mueller, Jinwook Oh, Martin Lutz, Jinwook Jung, Siyu
+      11.2      Sparsity-Aware and Out-of-Bound-Aware                                       Koswatta, Ching Zhou, Vidhi Zalani, James Bonanno, Robert Casatuta, Chia-Yu
+                                                                                            Chen, Jungwook Choi, Howard Haynie, Alyssa Herbert, Radhika Jain, Monodeep
+                Architectures                                                               Kar, Kyu-Hyoun Kim, Yulong Li, Zhibin Ren, Scot Rider, Marcel Schaal, Kerstin
+      There are two main trends for methods that seek to improve BFP or                     Schelm, Michael Scheuermann, Xiao Sun, Hung Tran, Naigang Wang, Wei Wang,
+                                                                                            Xin Zhang, Vinay Shah, Brian Curran, Vijayalakshmi Srinivasan, Pong-Fei Lu,
+      FP DNN accelerators: exploiting sparsity or exploiting out-of-bound                   Sunil Shukla, Leland Chang, and Kailash Gopalakrishnan. 2021. 9.1 A 7nm 4-
+      terms. Sparsity-aware architecture [12–14, 18, 35, 38, 51] exploits                   Core AI Chip with 25.6TFLOPS Hybrid FP8 Training, 102.4TOPS INT4 Inference
+                                                                                            and Workload-Aware Throttling. In 2021 IEEE International Solid- State Circuits
+      the sparsity associated with ReLU operations, quantization [42],                      Conference (ISSCC), Vol. 64. 144–146. https://doi.org/10.1109/ISSCC42613.2021.
+      and pruning. Zero input values or zero weights are located to skip                    9365791
+      the corresponding ineffectual MAC operations. The benefits can                    [3] Jorge Albericio, Alberto Delmás, Patrick Judd, Sayeh Sharify, Gerard O’Leary,
+                                                                                            Roman Genov, and Andreas Moshovos. 2017. Bit-Pragmatic Deep Neural Net-
+      be enhanced by further exploiting sub-word sparsity [17] and bit                      work Computing. In 2017 50th Annual IEEE/ACM International Symposium on
+      sparsity [3, 29, 41]. In addition, OB-aware architectures avoid MAC                   Microarchitecture (MICRO). 382–394.
+      computations with exponents that are tiny compared to the existing                [4] Omar Mohamed Awad, Mostafa Mahmoud, Isak Edo, Ali Hadi Zadeh, Ciaran
+                                                                                            Bannon, Anand Jayarajan, Gennady Pekhimenko, and Andreas Moshovos. 2021.
+      partial sums [4, 29]. Our work complements these architectures                        FPRaker: A Processing Element For Accelerating Neural Network Training. In
+      and can boost their energy and area efficiencies.                                     MICRO-54: 54th Annual IEEE/ACM International Symposium on Microarchitecture
+                                                                                            (Virtual Event, Greece) (MICRO ’21). Association for Computing Machinery, New
+                                                                                            York, NY, USA, 857–869. https://doi.org/10.1145/3466752.3480106
+      11.3      Repetition-Aware Architectures                                          [5] Gordon R. Chiu, Andrew C. Ling, Davor Capalija, Andrew Bitar, and Mo-
+                                                                                            hamed Saleh Abdelfattah. 2018. Flexibility: FPGAs and CAD in Deep Learning
+      Studies in the last category have explored accelerating DNNs by                       Acceleration. Proceedings of the 2018 International Symposium on Physical Design
+      exploiting repetitive computations. They store some pre-computed                      (2018).
+      results in a group of registers [15, 22, 26, 49]. UCNN [15] exploits              [6] Steve Dai, Rangha Venkatesan, Mark Ren, Brian Zimmer, William Dally, and
+                                                                                            Brucek Khailany. 2021. VS-Quant: Per-vector Scaled Quantization for Accurate
+      repetitive weights and avoids redundant computations with a bit-                      Low-Precision Neural Network Inference. In Proceedings of Machine Learning
+      parallel architecture. UNPU [22] exploits repetitive bit patterns by                  and Systems (MLsys), Vol. 3. 873–884. https://proceedings.mlsys.org/paper/2021/
+                                                                                            file/f0935e4cd5920aa6c7c996a5ee53a70f-Paper.pdf
+      utilizing LUT-based computations and avoiding redundant compu-                    [7] Bita Darvish Rouhani, Daniel Lo, Ritchie Zhao, Ming Liu, Jeremy Fowers, Kalin
+      tations. FuseKNA [49] also exploits repetitive bit patterns. These                    Ovtcharov, Anna Vinogradsky, Sarah Massengill, Lita Yang, Ray Bittner, Alessan-
+      methods also employ extra registers inside PEs, but their regis-                      dro Forin, Haishan Zhu, Taesik Na, Prerak Patel, Shuai Che, Lok Chand Koppaka,
+                                                                                            XIA SONG, Subhojit Som, Kaustav Das, Saurabh T, Steve Reinhardt, Sitaram
+      ters serve as lookup tables instead of partial sum accumulators. In                   Lanka, Eric Chung, and Doug Burger. 2020. Pushing the Limits of Narrow Pre-
+      addition, their target data types are not BFP, which involves our                     cision Inferencing at Cloud Scale with Microsoft Floating Point. In Advances in
+      identified bottleneck of converting and adding INT-domain MAC                         Neural Information Processing Systems, H. Larochelle, M. Ranzato, R. Hadsell, M.F.
+                                                                                            Balcan, and H. Lin (Eds.), Vol. 33. Curran Associates, Inc., 10271–10281.
+      results to FP-domain accumulating registers.                                      [8] Mario Drumond, Tao LIN, Martin Jaggi, and Babak Falsafi. 2018. Training DNNs
+                                                                                            with Hybrid Block Floating Point. In Advances in Neural Information Processing
+      12     CONCLUSIONS                                                                    Systems, S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and
+                                                                                            R. Garnett (Eds.), Vol. 31. Curran Associates, Inc.
+      This paper presents a novel architecture, Bucket Getter, which                    [9] Dionysios Filippas, Christodoulos Peltekis, Giorgos Dimitrakopoulos, and
+                                                                                            Chrysostomos Nicopoulos. 2023. Reduced-Precision Floating-Point Arithmetic
+      identifies and mitigates the power and area bottlenecks of FP-Acc.                    in Systolic Arrays with Skewed Pipelines.
+      Specifically, we propose 1) a bucket-based accumulator, 2) an inter-             [10] Jeremy Fowers, Kalin Ovtcharov, Michael Papamichael, Todd Massengill, Ming
+      bucket carry propagation scheme, 3) an out-of-bound-aware, adap-                      Liu, Daniel Lo, Shlomi Alkalay, Michael Haselman, Logan Adams, Mahdi Ghandi,
+                                                                                            Stephen Heil, Prerak Patel, Adam Sapek, Gabriel Weisz, Lisa Woods, Sitaram
+      tive and circular bucket accumulator, and 4) a shared FP-Acc. The                     Lanka, Steven Reinhardt, Adrian Caulfield, Eric Chung, and Doug Burger. 2018.
+      experimental results based on TSMC 40 nm demonstrate that our                         A Configurable Cloud-Scale DNN Processor for Real-Time AI. 1–14. https:
+      proposed Bucket Getter architecture reduces energy by up to 57%                       //doi.org/10.1109/ISCA.2018.00012
+                                                                                       [11] Sean Fox, Seyedramin Rasoulinezhad, Julian Faraone, david boland, and Philip
+      and yields the iso-area speedup by up to 1.4×, compared to state-                     Leong. 2021. A Block Minifloat Representation for Training Deep Neural
+      of-the-art BFP engines across seven representative DNN models.                        Networks. In International Conference on Learning Representations. https:
+                                                                                            //openreview.net/forum?id=6zaTwpNSsQ2
+      Furthermore, Bucket Getter reduces the PE area by up to 32% and                  [12] Ashish Gondimalla, Noah Chesnut, Mithuna Thottethodi, and T. N. Vijaykumar.
+      the PE power by up to 81% compared to the state-of-the-art FP                         2019. SparTen: A Sparse Tensor Accelerator for Convolutional Neural Networks.
+      engines.                                                                              In Proceedings of the 52nd Annual IEEE/ACM International Symposium on Microar-
+                                                                                            chitecture (Columbus, OH, USA) (MICRO ’52). Association for Computing Ma-
+                                                                                            chinery, New York, NY, USA, 151–165. https://doi.org/10.1145/3352460.3358291
+      ACKNOWLEDGMENTS                                                                  [13] Xin He, Subhankar Pal, Aporva Amarnath, Siying Feng, Dong-Hyeon Park, Austin
+                                                                                            Rovinski, Haojie Ye, Yuhan Chen, Ronald Dreslinski, and Trevor Mudge. 2020.
+      We thank the reviewers for their constructive comments. We thank                      Sparse-TPU: Adapting Systolic Arrays for Sparse Matrices. In Proceedings of the
+      NCHC and TSRI for their server services. This work is supported by                    34th ACM International Conference on Supercomputing (Barcelona, Spain) (ICS ’20).
+
+
+
+
+                                                                               1013
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      Bucket Getter: A Bucket-based Processing Engine for Low-bit Block Floating Point (BFP) DNNs                  MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada
+
+
+           Association for Computing Machinery, New York, NY, USA, Article 19, 12 pages.              1–9.
+           https://doi.org/10.1145/3392717.3392751                                               [29] Hang Lu, Liang Chang, Chenglong Li, Zixuan Zhu, Shengjian Lu, Yanhuan Liu,
+      [14] Kartik Hegde, Hadi Asghari-Moghaddam, Michael Pellauer, Neal Crago, Aamer                  and Mingzhe Zhang. 2021. Distilling Bit-Level Sparsity Parallelism for Gen-
+           Jaleel, Edgar Solomonik, Joel Emer, and Christopher W. Fletcher. 2019. ExTensor:           eral Purpose Deep Learning Acceleration. In MICRO-54: 54th Annual IEEE/ACM
+           An Accelerator for Sparse Tensor Algebra. In Proceedings of the 52nd Annual                International Symposium on Microarchitecture (Virtual Event, Greece) (MICRO
+           IEEE/ACM International Symposium on Microarchitecture (Columbus, OH, USA)                  ’21). Association for Computing Machinery, New York, NY, USA, 963–976.
+           (MICRO ’52). Association for Computing Machinery, New York, NY, USA, 319–333.              https://doi.org/10.1145/3466752.3480123
+           https://doi.org/10.1145/3352460.3358275                                               [30] Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi
+      [15] Kartik Hegde, Jiyong Yu, Rohit Agrawal, Mengjia Yan, Michael Pellauer, and                 Ramamoorthi, and Ren Ng. 2021. NeRF: Representing Scenes as Neural Radiance
+           Christopher W. Fletcher. 2018. UCNN: Exploiting Computational Reuse in Deep                Fields for View Synthesis. Commun. ACM 65, 1 (dec 2021), 99–106. https:
+           Neural Networks via Weight Repetition. In Proceedings of the 45th Annual Inter-            //doi.org/10.1145/3503250
+           national Symposium on Computer Architecture (Los Angeles, California) (ISCA           [31] Nebojša Milenković, Vladimir Stankovic, and Miljana Milić. 2015. Modular Design
+           ’18). IEEE Press, 674–687. https://doi.org/10.1109/ISCA.2018.00062                         Of Fast Leading Zeros Counting Circuit. Journal of Electrical Engineering 66 (11
+      [16] Wei-Hsing Huang, Tai-Hao Wen, Je-Min Hung, Win-San Khwa, Yun-Chen Lo,                      2015), 329–333. https://doi.org/10.2478/jee-2015-0054
+           Chuan-Jia Jhang, Huna-Hsi Hsu, Yu-Hsiana Chin, Yu-Chiao Chen, Chuna-Chuan             [32] Maxim Naumov, Dheevatsa Mudigere, Hao-Jun Michael Shi, Jianyu Huang,
+           Lo, Ren-Shuo Liu, Kea-Tiong Tang, Chih-Cheng Hsieh, Yu-Der Chih, Tsung-                    Narayanan Sundaraman, Jongsoo Park, Xiaodong Wang, Udit Gupta, Carole-Jean
+           Yung Chang, and Meng-Fan Chang. 2023. A Nonvolatile Al-Edge Processor                      Wu, Alisson G. Azzolini, Dmytro Dzhulgakov, Andrey Mallevich, Ilia Cherni-
+           with 4MB SLC-MLC Hybrid-Mode ReRAM Compute-in-Memory Macro and 51.4-                       avskii, Yinghai Lu, Raghuraman Krishnamoorthi, Ansha Yu, Volodymyr Kon-
+           251TOPS/W. In 2023 IEEE International Solid- State Circuits Conference (ISSCC).            dratenko, Stephanie Pereira, Xianjie Chen, Wenlin Chen, Vijay Rao, Bill Jia, Liang
+      [17] Dongseok Im, Gwangtae Park, Zhiyong Li, Junha Ryu, and Hoi-Jun Yoo. 2023.                  Xiong, and Misha Smelyanskiy. 2019. Deep Learning Recommendation Model
+           Sibia: Signed Bit-slice Architecture for Dense DNN Acceleration with Slice-level           for Personalization and Recommendation Systems. CoRR abs/1906.00091 (2019).
+           Sparsity Exploitation. In 2023 IEEE International Symposium on High-Performance            arXiv:1906.00091 http://arxiv.org/abs/1906.00091
+           Computer Architecture (HPCA). 69–80. https://doi.org/10.1109/HPCA56546.2023.          [33] NVIDIA. 2022. TensorFloat-32 in the A100 GPU Accelerates AI Training, HPC
+           10071031                                                                                   up to 20x. https://blogs.nvidia.com/blog/2020/05/14/tensorfloat-32-precision-
+      [18] Jun-Woo Jang, Sehwan Lee, Dongyoung Kim, Hyunsun Park, Ali Shafiee                         format/
+           Ardestani, Yeongjae Choi, Channoh Kim, Yoojin Kim, Hyeongseok Yu, Hamzah              [34] OpenAI. 2023. GPT-4 Technical Report. arXiv:2303.08774 [cs.CL]
+           Abdel-Aziz, Jun-Seok Park, Heonsoo Lee, Dongwoo Lee, Myeong Woo Kim, Han-             [35] Angshuman Parashar, Minsoo Rhu, Anurag Mukkara, Antonio Puglielli, Rang-
+           woong Jung, Heewoo Nam, Dongguen Lim, Seungwon Lee, Joon-Ho Song, Suk-                     harajan Venkatesan, Brucek Khailany, Joel Emer, Stephen W. Keckler, and
+           nam Kwon, Joseph Hassoun, SukHwan Lim, and Changkyu Choi. 2021. Sparsity-                  William J. Dally. 2017. SCNN: An accelerator for compressed-sparse convolu-
+           Aware and Re-configurable NPU Architecture for Samsung Flagship Mobile SoC.                tional neural networks. In 2017 ACM/IEEE 44th Annual International Symposium
+           In 2021 ACM/IEEE 48th Annual International Symposium on Computer Architecture              on Computer Architecture (ISCA). 27–40. https://doi.org/10.1145/3079856.3080254
+           (ISCA). 15–28. https://doi.org/10.1109/ISCA52012.2021.00011                           [36] Jun-Seok Park, Changsoo Park, Suknam Kwon, Hyeong-Seok Kim, Taeho Jeon,
+      [19] Norman P. Jouppi, Doe Hyun Yoon, Matthew Ashcraft, Mark Gottscho, Thomas B.                Yesung Kang, Heonsoo Lee, Dongwoo Lee, James Kim, YoungJong Lee, Sangkyu
+           Jablin, George Kurian, James Laudon, Sheng Li, Peter Ma, Xiaoyu Ma, Thomas                 Park, Jun-Woo Jang, SangHyuck Ha, MinSeong Kim, Jihoon Bang, Suk Hwan Lim,
+           Norrie, Nishant Patil, Sushma Prasad, Cliff Young, Zongwei Zhou, and David                 and Inyup Kang. 2022. A Multi-Mode 8K-MAC HW-Utilization-Aware Neural
+           Patterson. 2021. Ten Lessons From Three Generations Shaped Google’s TPUv4i :               Processing Unit with a Unified Multi-Precision Datapath in 4nm Flagship Mobile
+           Industrial Product. In 2021 ACM/IEEE 48th Annual International Symposium on                SoC. In 2022 IEEE International Solid- State Circuits Conference (ISSCC), Vol. 65.
+           Computer Architecture (ISCA). 1–14. https://doi.org/10.1109/ISCA52012.2021.                246–248. https://doi.org/10.1109/ISSCC42614.2022.9731639
+           00010                                                                                 [37] Sai Qian Zhang, Bradley McDanel, and H. T. Kung. 2022. FAST: DNN Training
+      [20] Dhiraj D. Kalamkar, Dheevatsa Mudigere, Naveen Mellempudi, Dipankar Das, Ku-               Under Variable Precision Block Floating Point with Stochastic Rounding. In
+           nal Banerjee, Sasikanth Avancha, Dharma Teja Vooturi, Nataraj Jammalamadaka,               2022 IEEE International Symposium on High-Performance Computer Architecture
+           Jianyu Huang, Hector Yuen, Jiyan Yang, Jongsoo Park, Alexander Heinecke, Evan-             (HPCA). 846–860. https://doi.org/10.1109/HPCA53966.2022.00067
+           gelos Georganas, Sudarshan Srinivasan, Abhisek Kundu, Misha Smelyanskiy,              [38] Eric Qin, Ananda Samajdar, Hyoukjun Kwon, Vineet Nadella, Sudarshan Srini-
+           Bharat Kaul, and Pradeep Dubey. 2019. A Study of BFLOAT16 for Deep Learning                vasan, Dipankar Das, Bharat Kaul, and Tushar Krishna. 2020. SIGMA: A Sparse
+           Training. ArXiv (2019). arXiv:1905.12322                                                   and Irregular GEMM Accelerator with Flexible Interconnects for DNN Training.
+      [21] Urs Köster, Tristan J. Webb, Xin Wang, Marcel Nassar, Arjun K. Bansal, William H.          In 2020 IEEE International Symposium on High Performance Computer Architecture
+           Constable, Oğuz H. Elibol, Scott Gray, Stewart Hall, Luke Hornof, Amir Khosrow-            (HPCA). 58–70. https://doi.org/10.1109/HPCA47549.2020.00015
+           shahi, Carey Kloss, Ruby J. Pai, and Naveen Rao. 2017. Flexpoint: An Adaptive         [39] Vijay Janapa Reddi, Christine Cheng, David Kanter, Peter Mattson, Guenther
+           Numerical Format for Efficient Training of Deep Neural Networks. In Proceedings            Schmuelling, Carole-Jean Wu, Brian Anderson, Maximilien Breughe, Mark
+           of the 31st International Conference on Neural Information Processing Systems              Charlebois, William Chou, Ramesh Chukka, Cody Coleman, Sam Davis, Pan
+           (Long Beach, California, USA) (NIPS’17). Curran Associates Inc., Red Hook, NY,             Deng, Greg Diamos, Jared Duke, Dave Fick, J. Scott Gardner, Itay Hubara, Sachin
+           USA, 1740–1750.                                                                            Idgunji, Thomas B. Jablin, Jeff Jiao, Tom St. John, Pankaj Kanwar, David Lee,
+      [22] Jinmook Lee, Changhyeon Kim, Sanghoon Kang, Dongjoo Shin, Sangyeob                         Jeffery Liao, Anton Lokhmotov, Francisco Massa, Peng Meng, Paulius Micike-
+           Kim, and Hoi-Jun Yoo. 2018. UNPU: A 50.6TOPS/W unified deep neural net-                    vicius, Colin Osborne, Gennady Pekhimenko, Arun Tejusve Raghunath Ra-
+           work accelerator with 1b-to-16b fully-variable weight bit-precision. In 2018               jan, Dilip Sequeira, Ashish Sirasao, Fei Sun, Hanlin Tang, Michael Thomson,
+           IEEE International Solid - State Circuits Conference - (ISSCC). 218–220. https:            Frank Wei, Ephrem Wu, Lingjie Xu, Koichi Yamada, Bing Yu, George Yuan,
+           //doi.org/10.1109/ISSCC.2018.8310262                                                       Aaron Zhong, Peizhao Zhang, and Yuchen Zhou. 2020. MLPerf Inference
+      [23] Y. Lo, Y. Tsai, and R. Liu. 2023. LV: Latency-Versatile Floating-Point Engine for          Benchmark. In Proceedings of the ACM/IEEE 47th Annual International Sympo-
+           High-Performance Deep Neural Networks. IEEE Computer Architecture Letters 01               sium on Computer Architecture (Virtual Event) (ISCA ’20). IEEE Press, 446–459.
+           (aug 2023), 1–4. https://doi.org/10.1109/LCA.2023.3287096                                  https://doi.org/10.1109/ISCA45697.2020.00045
+      [24] Yun-Chen Lo, Yu-Chun Kuo, Yun-Sheng Chang, Jian-Hao Huang, Jun-Shen Wu,               [40] Bita Rouhani, Ritchie Zhao, Venmugil Elango, Rasoul Shafipour, Mathew Hall,
+           Wen-Chien Ting, Tai-Hsing Wen, and Ren-Shuo Liu. 2019. Physically Tightly                  Maral Mesmakhosroshahi, Ankit More, Levi Melnick, Maximilian Golub, Girish
+           Coupled, Logically Loosely Coupled, Near-Memory BNN Accelerator (PTLL-                     Varatkar, Lei Shao, Gaurav Kolhe, Dimitry Melts, Jasmine Klar, Renee L’Heureux,
+           BNN). In IEEE European Solid State Circuits Conference (ESSCIRC).                          Matt Perry, Doug Burger, Eric Chung, Zhaoxia Deng, Sam Naghshineh, Jongsoo
+      [25] Yun-Chen Lo, Tse-Kuang Lee, and Ren-Shuo Liu. 2023. Block and Subword-                     Park, and Maxim Naumov. 2023. With Shared Microexponents, A Little Shifting
+           Scaling Floating-Point (BSFP) : An Efficient Non-Uniform Quantization For Low              Goes a Long Way. arXiv:2302.08007 [cs.LG]
+           Precision Inference. In The Eleventh International Conference on Learning Repre-      [41] Sayeh Sharify, Alberto Delmas Lascorz, Mostafa Mahmoud, Milos Nikolic, Kevin
+           sentations. https://openreview.net/forum?id=VWm4o4l3V9e                                    Siu, Dylan Malone Stuart, Zissis Poulos, and Andreas Moshovos. 2019. Laconic
+      [26] Yun-Chen Lo and Ren-Shuo Liu. 2023. Bit-Serial Cache: Exploiting Input Bit Vec-            Deep Learning Inference Acceleration. In Proceedings of the 46th International
+           tor Repetition to Accelerate Bit-Serial Inference. In ACM/IEEE Design Automation           Symposium on Computer Architecture (Phoenix, Arizona) (ISCA ’19). Association
+           Conference (DAC).                                                                          for Computing Machinery, New York, NY, USA, 304–317. https://doi.org/10.
+      [27] Yun-Chen Lo and Ren-Shuo Liu. 2023. Morphable CIM: Improving Operation                     1145/3307650.3322255
+           Intensity and Depthwise Capability for SRAM-CIM Architecture. In ACM/IEEE             [42] Gil Shomron, Freddy Gabbay, Samer Kurzum, and Uri Weiser. 2021. Post-Training
+           Design Automation Conference (DAC).                                                        Sparsity-Aware Quantization. In Advances in Neural Information Processing Sys-
+      [28] Yun-Chen Lo, Chih-Chen Yeh, Jun-Shen Wu, Chia-Chun Wang, Yu-Chih Tsai,                     tems, A. Beygelzimer, Y. Dauphin, P. Liang, and J. Wortman Vaughan (Eds.).
+           Wen-Chien Ting, and Ren-Shuo Liu. 2022. ISSA: Input-Skippable, Set-Associative             https://openreview.net/forum?id=qe9z54E_cqE
+           Computing-in-Memory (SA-CIM) Architecture for Neural Network Accelerators.            [43] Ilya Soloveychik, Ilya Lyubomirsky, Xin Wang, and Sudeep Bhoja. 2022. Block
+           In 2022 IEEE/ACM International Conference On Computer Aided Design (ICCAD).                Format Error Bounds and Optimal Block Size Selection. arXiv:2210.05470 [cs.LG]
+
+
+
+
+                                                                                          1014
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+      MICRO ’23, October 28–November 01, 2023, Toronto, ON, Canada                                                                                                           Y.-C. Lo et al.
+
+
+      [44] Thierry Tambe, Coleman Hooper, Lillian Pentecost, Tianyu Jia, En-Yu Yang,                     Jinwook Oh, Ashish Ranjan, Zhibin Ren, Scot Rider, Kerstin Schelm, Michael
+           Marco Donato, Victor Sanh, Paul Whatmough, Alexander M. Rush, David Brooks,                   Scheuermann, Joel Silberman, Jie Yang, Vidhi Zalani, Xin Zhang, Ching Zhou,
+           and Gu-Yeon Wei. 2021. EdgeBERT: Sentence-Level Energy Optimizations for                      Matt Ziegler, Vinay Shah, Moriyoshi Ohara, Pong-Fei Lu, Brian Curran, Sunil
+           Latency-Aware Multi-Task NLP Inference. In MICRO-54: 54th Annual IEEE/ACM                     Shukla, Leland Chang, and Kailash Gopalakrishnan. 2021. RaPiD: AI Accelerator
+           International Symposium on Microarchitecture (Virtual Event, Greece) (MICRO                   for Ultra-low Precision Training and Inference. In 2021 ACM/IEEE 48th Annual
+           ’21). Association for Computing Machinery, New York, NY, USA, 830–844. https:                 International Symposium on Computer Architecture (ISCA). 153–166. https://doi.
+           //doi.org/10.1145/3466752.3480095                                                             org/10.1109/ISCA52012.2021.00021
+      [45] Thierry Tambe, En-Yu Yang, Glenn G. Ko, Yuji Chai, Coleman Hooper, Marco                 [48] Chien-Yao Wang, Alexey Bochkovskiy, and Hong-Yuan Mark Liao. 2022. YOLOv7:
+           Donato, Paul N. Whatmough, Alexander M. Rush, David Brooks, and Gu-Yeon                       Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors.
+           Wei. 2021. 9.8 A 25mm2 SoC for IoT Devices with 18ms Noise-Robust Speech-to-                  arXiv:2207.02696 [cs.CV]
+           Text Latency via Bayesian Speech Denoising and Attention-Based Sequence-to-              [49] Jianxun Yang, Zhao Zhang, Zhuangzhi Liu, Jing Zhou, Leibo Liu, Shaojun Wei, and
+           Sequence DNN Speech Recognition in 16nm FinFET. In 2021 IEEE International                    Shouyi Yin. 2021. FuseKNA: Fused Kernel Convolution based Accelerator for Deep
+           Solid- State Circuits Conference (ISSCC), Vol. 64. 158–160. https://doi.org/10.1109/          Neural Networks. In 2021 IEEE International Symposium on High-Performance
+           ISSCC42613.2021.9366062                                                                       Computer Architecture (HPCA). 894–907. https://doi.org/10.1109/HPCA51647.
+      [46] Thierry Tambe, En-Yu Yang, Zishen Wan, Yuntian Deng, Vijay Janapa Reddi,                      2021.00079
+           Alexander Rush, David Brooks, and Gu-Yeon Wei. 2020. Algorithm-Hardware                  [50] Thomas Yeh, Max Sterner, Zerlina Lai, Brandon Chuang, and Alexander Ihler. 2022.
+           Co-Design of Adaptive Floating-Point Encodings for Resilient Deep Learning                    Be Like Water: Adaptive Floating Point for Machine Learning. In International
+           Inference. In 2020 57th ACM/IEEE Design Automation Conference (DAC). 1–6.                     Conference on Machine Learning, ICML 2022, 17-23 July 2022, Baltimore, Maryland,
+           https://doi.org/10.1109/DAC18072.2020.9218516                                                 USA (Proceedings of Machine Learning Research, Vol. 162), Kamalika Chaudhuri,
+      [47] Swagath Venkataramani, Vijayalakshmi Srinivasan, Wei Wang, Sanchari Sen,                      Stefanie Jegelka, Le Song, Csaba Szepesvári, Gang Niu, and Sivan Sabato (Eds.).
+           Jintao Zhang, Ankur Agrawal, Monodeep Kar, Shubham Jain, Alberto Mannari,                     PMLR, 25490–25500. https://proceedings.mlr.press/v162/yeh22a.html
+           Hoang Tran, Yulong Li, Eri Ogawa, Kazuaki Ishizaki, Hiroshi Inoue, Marcel                [51] Zhekai Zhang, Hanrui Wang, Song Han, and William J. Dally. 2020. SpArch:
+           Schaal, Mauricio Serrano, Jungwook Choi, Xiao Sun, Naigang Wang, Chia-Yu                      Efficient Architecture for Sparse Matrix Multiplication. In 2020 IEEE International
+           Chen, Allison Allain, James Bonano, Nianzheng Cao, Robert Casatuta, Matthew                   Symposium on High Performance Computer Architecture (HPCA). 261–274. https:
+           Cohen, Bruce Fleischer, Michael Guillorn, Howard Haynie, Jinwook Jung, Mingu                  //doi.org/10.1109/HPCA47549.2020.00030
+           Kang, Kyu-hyoun Kim, Siyu Koswatta, Saekyu Lee, Martin Lutz, Silvia Mueller,
+
+
+
+
+                                                                                             1015
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on November 22,2025 at 15:01:17 UTC from IEEE Xplore. Restrictions apply.
+

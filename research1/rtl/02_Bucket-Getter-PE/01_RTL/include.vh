@@ -40,15 +40,20 @@
     `define FPACC_LOD_W $clog2(`FPACC_MAN_W + 1)
     `define FPACC_CALC_EXP_W (`BFP_BEXP_W + 2)
 
-    // -----------------------------------------------------------------------
-    // Top-6 x 4-bit Adaptive Circular Bucket Configuration
-    // -----------------------------------------------------------------------
+    //=============================================================
+    //       Top-6 Adaptive Circular Bucket Configuration
+    //=============================================================
     `define BG_BUCKET_COUNT 6
-    `define BG_BUCKET_WIDTH 4
+    `define BG_LOGICAL_BUCKET_WIDTH 4
+    `define BG_BUCKET_WIDTH `BG_LOGICAL_BUCKET_WIDTH
     `define BG_EXP_PER_BUCKET 4
     `define BG_BUCKET_PTR_W $clog2(`BG_BUCKET_COUNT)
     `define BG_BUCKET_SHIFT_W $clog2(`BG_EXP_PER_BUCKET)
+    `define BG_FIFO_DEPTH 2
+    `define BG_FIFO_PTR_W $clog2(`BG_FIFO_DEPTH)
+    `define BG_FIFO_COUNT_W $clog2(`BG_FIFO_DEPTH + 1)
     `define BG_WORK_W (`BFP_SUM_W + `BG_EXP_PER_BUCKET + 2)
-    `define BG_WORK_DIGITS ((`BG_WORK_W + `BG_BUCKET_WIDTH - 1) / `BG_BUCKET_WIDTH + 1)
+    `define BG_UPDATE_W (`BG_WORK_W + 1)
+    `define BG_WORK_DIGITS ((`BG_WORK_W + `BG_EXP_PER_BUCKET - 1) / `BG_EXP_PER_BUCKET + 1)
 
 `endif

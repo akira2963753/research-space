@@ -12,26 +12,31 @@
 module BG_ACC(
     input logic clk,
     input logic rst_n,
-    input logic i_start,
-    input logic i_valid,
-    output logic o_ready,
-    input logic i_last,
-    input logic i_dp_sign,
-    input logic [`BFP_MAG_W-1:0] i_dp_mag,
-    input logic signed [`BFP_BEXP_W-1:0] i_exp,
-    output logic o_spill_valid,
-    input logic i_spill_ready,
-    output logic o_spill_sign,
-    output logic [`BFP_MAG_W-1:0] o_spill_mag,
-    output logic signed [`BFP_BEXP_W-1:0] o_spill_exp,
-    output logic o_done,
-    output logic o_busy
+    input logic acc_clear,
+    input logic in_valid,
+    output logic in_ready,
+    input logic in_last,
+    input logic dp_sign,
+    input logic [`BFP_MAG_W-1:0] dp_mag,
+    input logic signed [`BFP_BEXP_W-1:0] blk_exp,
+    output logic spill_valid,
+    input logic spill_ready,
+    output logic spill_sign,
+    output logic [`BFP_MAG_W-1:0] spill_mag,
+    output logic signed [`BFP_BEXP_W-1:0] spill_exp,
+    output logic done,
+    output logic busy,
+    output logic profile_fifo_full,
+    output logic profile_bucket_update,
+    output logic profile_carry_event,
+    output logic profile_carry_hop,
+    output logic profile_multi_hop,
+    output logic profile_fp_flush,
+    output logic profile_oob_drop,
+    output logic [2:0] profile_carry_depth
 );
 
     import BG_PKG::*;
-
-    localparam int CARRY_STATE_COUNT = 5;
-    localparam logic [2:0] CARRY_ZERO = 3'd2;
 
     typedef enum logic [1:0] {
         S_ACC,
@@ -43,19 +48,47 @@ module BG_ACC(
     state_t state_reg;
     state_t state_next;
 
+    //=============================================================
+    //                    Circular Bucket Bank
+    //=============================================================
     logic signed [`BG_BUCKET_WIDTH-1:0] bucket_reg [0:`BG_BUCKET_COUNT-1];
     logic signed [`BG_BUCKET_WIDTH-1:0] bucket_next [0:`BG_BUCKET_COUNT-1];
     logic [`BG_BUCKET_COUNT-1:0] bucket_valid_reg;
     logic [`BG_BUCKET_COUNT-1:0] bucket_valid_next;
+    logic [`BG_BUCKET_COUNT-1:0] active_valid_work;
+
     logic emax_valid_reg;
     logic emax_valid_next;
     logic signed [`BFP_BEXP_W-1:0] emax_base_reg;
     logic signed [`BFP_BEXP_W-1:0] emax_base_next;
     logic [`BG_BUCKET_PTR_W-1:0] front_ptr_reg;
     logic [`BG_BUCKET_PTR_W-1:0] front_ptr_next;
-    logic [`BG_BUCKET_PTR_W-1:0] drain_offset_reg;
-    logic [`BG_BUCKET_PTR_W-1:0] drain_offset_next;
 
+    //=============================================================
+    //                       Psum FIFO Depth 2
+    //=============================================================
+    logic signed [`BG_WORK_W-1:0] fifo_data_reg [0:`BG_FIFO_DEPTH-1];
+    logic signed [`BG_WORK_W-1:0] fifo_data_next [0:`BG_FIFO_DEPTH-1];
+    logic signed [`BFP_BEXP_W-1:0] fifo_base_reg [0:`BG_FIFO_DEPTH-1];
+    logic signed [`BFP_BEXP_W-1:0] fifo_base_next [0:`BG_FIFO_DEPTH-1];
+    logic signed [`BFP_BEXP_W-1:0] fifo_top_base_reg [0:`BG_FIFO_DEPTH-1];
+    logic signed [`BFP_BEXP_W-1:0] fifo_top_base_next [0:`BG_FIFO_DEPTH-1];
+    logic fifo_last_reg [0:`BG_FIFO_DEPTH-1];
+    logic fifo_last_next [0:`BG_FIFO_DEPTH-1];
+    logic [`BG_FIFO_PTR_W-1:0] fifo_rd_ptr_reg;
+    logic [`BG_FIFO_PTR_W-1:0] fifo_rd_ptr_next;
+    logic [`BG_FIFO_PTR_W-1:0] fifo_wr_ptr_reg;
+    logic [`BG_FIFO_PTR_W-1:0] fifo_wr_ptr_next;
+    logic [`BG_FIFO_COUNT_W-1:0] fifo_count_reg;
+    logic [`BG_FIFO_COUNT_W-1:0] fifo_count_next;
+    logic last_queued_reg;
+    logic last_queued_next;
+    logic drain_pending_reg;
+    logic drain_pending_next;
+
+    //=============================================================
+    //                       FP Spill Slot
+    //=============================================================
     logic spill_valid_reg;
     logic spill_sign_reg;
     logic [`BFP_MAG_W-1:0] spill_mag_reg;
@@ -66,56 +99,67 @@ module BG_ACC(
     logic [`BFP_MAG_W-1:0] spill_push_mag;
     logic signed [`BFP_BEXP_W-1:0] spill_push_exp;
 
+    //=============================================================
+    //                    Input Mapping Stage
+    //=============================================================
     logic signed [`BFP_SUM_W-1:0] input_sum_work;
-    logic signed [`BFP_BEXP_W-1:0] prepared_base_work;
-    logic [`BG_BUCKET_SHIFT_W-1:0] prepared_shift_work;
-    logic signed [`BG_WORK_W-1:0] prepared_value_work;
-    logic signed [`BG_WORK_W-1:0] quotient_work [0:`BG_WORK_DIGITS];
-    logic signed [`BG_BUCKET_WIDTH-1:0] input_radix_digit_work [0:`BG_WORK_DIGITS-1];
-    logic signed [`BG_WORK_W-1:0] input_radix_ext_work [0:`BG_WORK_DIGITS-1];
-    logic [`BG_WORK_DIGITS-1:0] quotient_nonzero_work;
-    logic [`BG_BUCKET_PTR_W-1:0] input_top_offset_work;
+    logic signed [`BFP_BEXP_W-1:0] input_base_work;
+    logic [`BG_BUCKET_SHIFT_W-1:0] input_shift_work;
+    logic signed [`BG_WORK_W-1:0] input_aligned_work;
+    integer input_top_offset_work;
     logic signed [`BFP_BEXP_W-1:0] input_top_base_work;
-    logic signed [`BFP_BEXP_W-1:0] input_digit_base_work [0:`BG_WORK_DIGITS-1];
 
-    logic signed [`BG_BUCKET_WIDTH-1:0] logical_bucket_work [0:`BG_BUCKET_COUNT-1];
-    logic signed [`BG_BUCKET_WIDTH-1:0] rotated_bucket_work [0:`BG_BUCKET_COUNT-1];
-    logic signed [`BG_BUCKET_WIDTH-1:0] input_bucket_digit_work [0:`BG_BUCKET_COUNT-1];
-    logic signed [`BG_BUCKET_WIDTH-1:0] updated_bucket_work [0:`BG_BUCKET_COUNT-1];
-    logic [`BG_BUCKET_COUNT-1:0] updated_bucket_valid_work;
-    logic signed [`BFP_BEXP_W-1:0] logical_base_work [0:`BG_BUCKET_COUNT-1];
-
-    logic signed [5:0] input_add_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [`BG_BUCKET_WIDTH-1:0] input_norm_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic input_norm_valid_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [5:0] input_norm_ext_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [2:0] input_carry_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [5:0] bucket_add_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [`BG_BUCKET_WIDTH-1:0] bucket_norm_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic bucket_norm_valid_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [5:0] bucket_norm_ext_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [2:0] bucket_carry_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic signed [3:0] total_carry_variant [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic [2:0] transition_l0 [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic [2:0] transition_l1 [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic [2:0] transition_l2 [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic [2:0] transition_l3 [0:`BG_BUCKET_COUNT-1][0:CARRY_STATE_COUNT-1];
-    logic [2:0] carry_in_state_work [0:`BG_BUCKET_COUNT-1];
+    //=============================================================
+    //                    Scheduler and Update
+    //=============================================================
+    logic fifo_push_work;
+    logic fifo_pop_work;
+    logic service_valid_work;
+    logic service_last_work;
+    logic signed [`BG_WORK_W-1:0] service_data_work;
+    logic signed [`BFP_BEXP_W-1:0] service_base_work;
+    logic signed [`BFP_BEXP_W-1:0] service_top_base_work;
 
     logic signed [`BFP_BEXP_W-1:0] active_emax_work;
+    logic signed [`BFP_BEXP_W-1:0] active_rear_base_work;
     logic [`BG_BUCKET_PTR_W-1:0] active_front_ptr_work;
-    logic [`BG_BUCKET_PTR_W-1:0] final_front_ptr_work;
-    logic signed [`BFP_BEXP_W-1:0] final_emax_work;
-    logic signed [8:0] rotate_steps_work;
-    logic rotate_all_work;
-    logic extra_top_work;
-    logic signed [2:0] top_input_carry_work;
-    logic signed [2:0] top_bucket_carry_work;
-    logic signed [`BG_BUCKET_WIDTH-1:0] top_input_digit_work;
-    logic top_input_digit_valid_work;
-    logic signed [`BG_BUCKET_WIDTH-1:0] tail_bucket_work;
-    logic tail_bucket_valid_work;
-    integer drain_ptr_work;
+    integer advance_steps_work;
+    integer skip_digits_work;
+
+    logic selected_in_bound_work;
+    logic selected_is_max_work;
+    logic [`BG_BUCKET_PTR_W-1:0] selected_offset_work;
+    logic [`BG_BUCKET_PTR_W-1:0] selected_ptr_work;
+    logic signed [`BFP_BEXP_W-1:0] selected_base_work;
+    logic signed [`BG_WORK_W-1:0] selected_data_work;
+    logic signed [`BG_BUCKET_WIDTH-1:0] selected_bucket_work;
+    logic signed [`BG_UPDATE_W-1:0] selected_sum_work;
+    logic signed [`BG_BUCKET_WIDTH-1:0] selected_result_work;
+    logic signed [`BG_UPDATE_W-1:0] selected_result_ext_work;
+    logic signed [`BG_UPDATE_W-1:0] selected_carry_work;
+    logic [`BG_UPDATE_W-1:0] selected_mag_work;
+
+    //=============================================================
+    //                 Parallel Carry/Borrow Prefix
+    //=============================================================
+    logic [`BG_BUCKET_COUNT-2:0] chain_full_work;
+    logic [`BG_BUCKET_COUNT-2:0] chain_empty_work;
+    logic [`BG_BUCKET_COUNT-2:0] chain_carry_in_work;
+    logic [`BG_BUCKET_COUNT-2:0] chain_zero_work;
+    logic [`BG_BUCKET_COUNT-2:0] chain_fill_work;
+    logic [`BG_BUCKET_COUNT-2:0] chain_inc_work;
+    logic [`BG_BUCKET_COUNT-2:0] chain_dec_work;
+    logic [`BG_BUCKET_PTR_W-1:0] chain_ptr_work [0:`BG_BUCKET_COUNT-2];
+    logic carry_positive_work;
+    logic carry_negative_work;
+    logic carry_reaches_top_work;
+    logic [2:0] carry_depth_work;
+    logic prefix_supported_work;
+    logic signed [`BG_UPDATE_W-1:0] prefix_spill_value_work;
+
+    logic [`BG_BUCKET_PTR_W-1:0] drain_offset_reg;
+    logic [`BG_BUCKET_PTR_W-1:0] drain_offset_next;
+    logic [`BG_BUCKET_PTR_W-1:0] drain_ptr_work;
     logic signed [`BFP_BEXP_W-1:0] drain_base_work;
 
     always_comb begin : p_next_state
@@ -124,460 +168,384 @@ module BG_ACC(
         emax_valid_next = emax_valid_reg;
         emax_base_next = emax_base_reg;
         front_ptr_next = front_ptr_reg;
+        fifo_rd_ptr_next = fifo_rd_ptr_reg;
+        fifo_wr_ptr_next = fifo_wr_ptr_reg;
+        fifo_count_next = fifo_count_reg;
+        last_queued_next = last_queued_reg;
+        drain_pending_next = drain_pending_reg;
         drain_offset_next = drain_offset_reg;
 
         for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
             bucket_next[i] = bucket_reg[i];
+            active_valid_work[i] = bucket_valid_reg[i];
+        end
+        for(int i = 0; i < `BG_FIFO_DEPTH; i++) begin
+            fifo_data_next[i] = fifo_data_reg[i];
+            fifo_base_next[i] = fifo_base_reg[i];
+            fifo_top_base_next[i] = fifo_top_base_reg[i];
+            fifo_last_next[i] = fifo_last_reg[i];
         end
 
-        o_ready = 1'b0;
-        o_spill_valid = spill_valid_reg;
-        o_spill_sign = spill_sign_reg;
-        o_spill_mag = spill_mag_reg;
-        o_spill_exp = spill_exp_reg;
-        o_done = 1'b0;
-        o_busy = state_reg != S_ACC;
+        spill_valid = spill_valid_reg;
+        spill_sign = spill_sign_reg;
+        spill_mag = spill_mag_reg;
+        spill_exp = spill_exp_reg;
+        done = 1'b0;
+        busy = state_reg != S_ACC
+             || fifo_count_reg != 0
+             || drain_pending_reg;
 
-        spill_slot_ready = !spill_valid_reg || i_spill_ready;
+        spill_slot_ready = !spill_valid_reg || spill_ready;
         spill_push_valid = 1'b0;
         spill_push_sign = 1'b0;
         spill_push_mag = '0;
         spill_push_exp = '0;
 
-        input_sum_work = $signed({1'b0, i_dp_mag});
-        if(i_dp_sign) input_sum_work = -input_sum_work;
-        prepared_base_work = EXP_BASE(i_exp);
-        prepared_shift_work = i_exp - prepared_base_work;
-        prepared_value_work = {
+        profile_fifo_full = fifo_count_reg == `BG_FIFO_DEPTH;
+        profile_bucket_update = 1'b0;
+        profile_carry_event = 1'b0;
+        profile_carry_hop = 1'b0;
+        profile_multi_hop = 1'b0;
+        profile_fp_flush = 1'b0;
+        profile_oob_drop = 1'b0;
+        profile_carry_depth = '0;
+
+        input_sum_work = $signed({1'b0, dp_mag});
+        if(dp_sign)
+            input_sum_work = -input_sum_work;
+        input_base_work = EXP_BASE(blk_exp);
+        input_shift_work = blk_exp - input_base_work;
+        input_aligned_work = {
             {(`BG_WORK_W-`BFP_SUM_W){input_sum_work[`BFP_SUM_W-1]}},
             input_sum_work
         };
-        prepared_value_work = prepared_value_work <<< prepared_shift_work;
-
-        quotient_work[0] = prepared_value_work;
-        for(int i = 0; i < `BG_WORK_DIGITS; i++) begin
-            input_radix_digit_work[i] = quotient_work[i][`BG_BUCKET_WIDTH-1:0];
-            input_radix_ext_work[i] = {
-                {(`BG_WORK_W-`BG_BUCKET_WIDTH){
-                    input_radix_digit_work[i][`BG_BUCKET_WIDTH-1]
-                }},
-                input_radix_digit_work[i]
-            };
-            quotient_work[i+1] = (quotient_work[i]-input_radix_ext_work[i])
-                               >>> `BG_EXP_PER_BUCKET;
-            quotient_nonzero_work[i] = quotient_work[i] != 0;
-            input_digit_base_work[i] = prepared_base_work
-                                     + i*`BG_EXP_PER_BUCKET;
-        end
-
-        casez(quotient_nonzero_work)
-            6'b1?????: input_top_offset_work = 3'd5;
-            6'b01????: input_top_offset_work = 3'd4;
-            6'b001???: input_top_offset_work = 3'd3;
-            6'b0001??: input_top_offset_work = 3'd2;
-            6'b00001?: input_top_offset_work = 3'd1;
-            default: input_top_offset_work = '0;
-        endcase
-
-        input_top_base_work = prepared_base_work
+        input_aligned_work = input_aligned_work <<< input_shift_work;
+        input_top_offset_work = WORK_TOP_OFFSET(input_aligned_work);
+        input_top_base_work = input_base_work
                             + input_top_offset_work*`BG_EXP_PER_BUCKET;
 
-        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-            logical_bucket_work[i] = '0;
-            rotated_bucket_work[i] = '0;
-            input_bucket_digit_work[i] = '0;
-            updated_bucket_work[i] = '0;
-            updated_bucket_valid_work[i] = 1'b0;
-            logical_base_work[i] = '0;
+        fifo_pop_work = state_reg == S_ACC
+                      && spill_slot_ready
+                      && fifo_count_reg != 0;
+        in_ready = state_reg == S_ACC
+                && !last_queued_reg
+                && (fifo_count_reg < `BG_FIFO_DEPTH || fifo_pop_work);
+        fifo_push_work = in_valid && in_ready;
+
+        if(fifo_push_work) begin
+            fifo_data_next[fifo_wr_ptr_reg] = input_aligned_work;
+            fifo_base_next[fifo_wr_ptr_reg] = input_base_work;
+            fifo_top_base_next[fifo_wr_ptr_reg] = input_top_base_work;
+            fifo_last_next[fifo_wr_ptr_reg] = in_last;
+            fifo_wr_ptr_next = fifo_wr_ptr_reg + 1'b1;
+            if(in_last)
+                last_queued_next = 1'b1;
         end
 
-        case(front_ptr_reg)
-            3'd0: begin
-                logical_bucket_work[0] = bucket_reg[0];
-                logical_bucket_work[1] = bucket_reg[5];
-                logical_bucket_work[2] = bucket_reg[4];
-                logical_bucket_work[3] = bucket_reg[3];
-                logical_bucket_work[4] = bucket_reg[2];
-                logical_bucket_work[5] = bucket_reg[1];
-            end
-            3'd1: begin
-                logical_bucket_work[0] = bucket_reg[1];
-                logical_bucket_work[1] = bucket_reg[0];
-                logical_bucket_work[2] = bucket_reg[5];
-                logical_bucket_work[3] = bucket_reg[4];
-                logical_bucket_work[4] = bucket_reg[3];
-                logical_bucket_work[5] = bucket_reg[2];
-            end
-            3'd2: begin
-                logical_bucket_work[0] = bucket_reg[2];
-                logical_bucket_work[1] = bucket_reg[1];
-                logical_bucket_work[2] = bucket_reg[0];
-                logical_bucket_work[3] = bucket_reg[5];
-                logical_bucket_work[4] = bucket_reg[4];
-                logical_bucket_work[5] = bucket_reg[3];
-            end
-            3'd3: begin
-                logical_bucket_work[0] = bucket_reg[3];
-                logical_bucket_work[1] = bucket_reg[2];
-                logical_bucket_work[2] = bucket_reg[1];
-                logical_bucket_work[3] = bucket_reg[0];
-                logical_bucket_work[4] = bucket_reg[5];
-                logical_bucket_work[5] = bucket_reg[4];
-            end
-            3'd4: begin
-                logical_bucket_work[0] = bucket_reg[4];
-                logical_bucket_work[1] = bucket_reg[3];
-                logical_bucket_work[2] = bucket_reg[2];
-                logical_bucket_work[3] = bucket_reg[1];
-                logical_bucket_work[4] = bucket_reg[0];
-                logical_bucket_work[5] = bucket_reg[5];
-            end
-            3'd5: begin
-                logical_bucket_work[0] = bucket_reg[5];
-                logical_bucket_work[1] = bucket_reg[4];
-                logical_bucket_work[2] = bucket_reg[3];
-                logical_bucket_work[3] = bucket_reg[2];
-                logical_bucket_work[4] = bucket_reg[1];
-                logical_bucket_work[5] = bucket_reg[0];
-            end
-            default: begin
-                logical_bucket_work[0] = bucket_reg[0];
-                logical_bucket_work[1] = bucket_reg[5];
-                logical_bucket_work[2] = bucket_reg[4];
-                logical_bucket_work[3] = bucket_reg[3];
-                logical_bucket_work[4] = bucket_reg[2];
-                logical_bucket_work[5] = bucket_reg[1];
-            end
+        if(fifo_pop_work)
+            fifo_rd_ptr_next = fifo_rd_ptr_reg + 1'b1;
+
+        case({fifo_push_work, fifo_pop_work})
+            2'b10: fifo_count_next = fifo_count_reg + 1'b1;
+            2'b01: fifo_count_next = fifo_count_reg - 1'b1;
+            default: fifo_count_next = fifo_count_reg;
         endcase
 
-        active_emax_work = emax_base_reg;
-        active_front_ptr_work = front_ptr_reg;
-        final_emax_work = emax_base_reg;
-        final_front_ptr_work = front_ptr_reg;
-        rotate_steps_work = '0;
-        rotate_all_work = 1'b0;
-        extra_top_work = 1'b0;
-        top_input_carry_work = '0;
-        top_bucket_carry_work = '0;
-        top_input_digit_work = '0;
-        top_input_digit_valid_work = 1'b0;
-        tail_bucket_work = '0;
-        tail_bucket_valid_work = 1'b0;
-        drain_ptr_work = 0;
-        drain_base_work = '0;
+        service_valid_work = 1'b0;
+        service_last_work = 1'b0;
+        service_data_work = '0;
+        service_base_work = '0;
+        service_top_base_work = '0;
 
-        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-            for(int s = 0; s < CARRY_STATE_COUNT; s++) begin
-                input_add_variant[i][s] = '0;
-                input_norm_variant[i][s] = '0;
-                input_norm_valid_variant[i][s] = 1'b0;
-                input_norm_ext_variant[i][s] = '0;
-                input_carry_variant[i][s] = '0;
-                bucket_add_variant[i][s] = '0;
-                bucket_norm_variant[i][s] = '0;
-                bucket_norm_valid_variant[i][s] = 1'b0;
-                bucket_norm_ext_variant[i][s] = '0;
-                bucket_carry_variant[i][s] = '0;
-                total_carry_variant[i][s] = '0;
-                transition_l0[i][s] = CARRY_ZERO;
-                transition_l1[i][s] = CARRY_ZERO;
-                transition_l2[i][s] = CARRY_ZERO;
-                transition_l3[i][s] = CARRY_ZERO;
+        if(state_reg == S_ACC && spill_slot_ready) begin
+            if(fifo_count_reg != 0) begin
+                service_valid_work = 1'b1;
+                service_data_work = fifo_data_reg[fifo_rd_ptr_reg];
+                service_base_work = fifo_base_reg[fifo_rd_ptr_reg];
+                service_top_base_work = fifo_top_base_reg[fifo_rd_ptr_reg];
+                service_last_work = fifo_last_reg[fifo_rd_ptr_reg];
             end
-            carry_in_state_work[i] = CARRY_ZERO;
         end
+
+        active_emax_work = emax_base_reg;
+        active_rear_base_work = emax_base_reg
+                              - (`BG_BUCKET_COUNT-1)*`BG_EXP_PER_BUCKET;
+        active_front_ptr_work = front_ptr_reg;
+        advance_steps_work = 0;
+        skip_digits_work = 0;
+
+        selected_in_bound_work = 1'b0;
+        selected_is_max_work = 1'b0;
+        selected_offset_work = '0;
+        selected_ptr_work = '0;
+        selected_base_work = service_base_work;
+        selected_data_work = service_data_work;
+        selected_bucket_work = '0;
+        selected_sum_work = '0;
+        selected_result_work = '0;
+        selected_result_ext_work = '0;
+        selected_carry_work = '0;
+        selected_mag_work = '0;
+        chain_full_work = '0;
+        chain_empty_work = '0;
+        chain_carry_in_work = '0;
+        chain_zero_work = '0;
+        chain_fill_work = '0;
+        chain_inc_work = '0;
+        chain_dec_work = '0;
+        carry_positive_work = 1'b0;
+        carry_negative_work = 1'b0;
+        carry_reaches_top_work = 1'b0;
+        carry_depth_work = '0;
+        prefix_supported_work = 1'b0;
+        prefix_spill_value_work = '0;
+        for(int i = 0; i < `BG_BUCKET_COUNT-1; i++)
+            chain_ptr_work[i] = '0;
+
+        drain_ptr_work = '0;
+        drain_base_work = '0;
 
         case(state_reg)
             S_ACC: begin
-                o_ready = spill_slot_ready;
-
-                if(i_valid && o_ready) begin
-                    if(input_sum_work != 0) begin
+                if(service_valid_work) begin
+                    if(service_data_work != 0) begin
                         if(!emax_valid_reg) begin
-                            active_emax_work = input_top_base_work;
+                            active_emax_work = service_top_base_work;
                             active_front_ptr_work = front_ptr_reg;
-                            for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                                rotated_bucket_work[i] = '0;
-                            end
+                            active_valid_work = '0;
                         end
-                        else if(input_top_base_work > emax_base_reg) begin
-                            rotate_steps_work = (input_top_base_work-emax_base_reg)
-                                              >>> `BG_BUCKET_SHIFT_W;
-                            active_emax_work = input_top_base_work;
+                        else if(service_top_base_work > emax_base_reg) begin
+                            advance_steps_work =
+                                (service_top_base_work-emax_base_reg)
+                                >>> `BG_BUCKET_SHIFT_W;
+                            active_emax_work = service_top_base_work;
 
-                            if(rotate_steps_work >= `BG_BUCKET_COUNT) begin
-                                rotate_all_work = 1'b1;
-                                active_front_ptr_work = '0;
+                            if(advance_steps_work >= `BG_BUCKET_COUNT) begin
+                                active_valid_work = '0;
                             end
                             else begin
-                                case(rotate_steps_work[2:0])
-                                    3'd1: active_front_ptr_work = PTR_INC(front_ptr_reg);
-                                    3'd2: active_front_ptr_work = PTR_INC(PTR_INC(front_ptr_reg));
-                                    3'd3: active_front_ptr_work = PTR_INC(PTR_INC(PTR_INC(front_ptr_reg)));
-                                    3'd4: active_front_ptr_work = PTR_INC(PTR_INC(PTR_INC(PTR_INC(front_ptr_reg))));
-                                    3'd5: active_front_ptr_work = PTR_INC(PTR_INC(PTR_INC(PTR_INC(PTR_INC(front_ptr_reg)))));
-                                    default: active_front_ptr_work = front_ptr_reg;
-                                endcase
-                            end
-
-                            if(!rotate_all_work) begin
+                                active_front_ptr_work = PTR_ADD(
+                                    front_ptr_reg,
+                                    advance_steps_work
+                                );
                                 for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                                    for(int j = 0; j < `BG_BUCKET_COUNT; j++) begin
-                                        if(i == j+rotate_steps_work)
-                                            rotated_bucket_work[i] = logical_bucket_work[j];
-                                    end
+                                    if(i < advance_steps_work)
+                                        active_valid_work[
+                                            PTR_SUB(active_front_ptr_work, i)
+                                        ] = 1'b0;
                                 end
                             end
                         end
-                        else begin
-                            for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                                rotated_bucket_work[i] = logical_bucket_work[i];
-                            end
+
+                        active_rear_base_work = active_emax_work
+                                              - (`BG_BUCKET_COUNT-1)
+                                              * `BG_EXP_PER_BUCKET;
+                        selected_in_bound_work = service_top_base_work
+                                               >= active_rear_base_work;
+
+                        if(selected_in_bound_work
+                           && service_base_work < active_rear_base_work) begin
+                            skip_digits_work =
+                                (active_rear_base_work-service_base_work)
+                                >>> `BG_BUCKET_SHIFT_W;
+                            selected_base_work = active_rear_base_work;
+                            selected_data_work = service_data_work
+                                               >>> (skip_digits_work
+                                               * `BG_EXP_PER_BUCKET);
                         end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            logical_base_work[i] = active_emax_work
-                                                 - i*`BG_EXP_PER_BUCKET;
-                            for(int j = 0; j < `BG_WORK_DIGITS; j++) begin
-                                if(logical_base_work[i] == input_digit_base_work[j])
-                                    input_bucket_digit_work[i] = input_radix_digit_work[j];
-                            end
-                        end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            for(int s = 0; s < CARRY_STATE_COUNT; s++) begin
-                                input_add_variant[i][s] = $signed({
-                                    {2{input_bucket_digit_work[i][`BG_BUCKET_WIDTH-1]}},
-                                    input_bucket_digit_work[i]
-                                }) + $signed(s-2);
-                                input_norm_variant[i][s] = input_add_variant[i][s][`BG_BUCKET_WIDTH-1:0];
-                                input_norm_valid_variant[i][s] = |input_norm_variant[i][s];
-                                input_norm_ext_variant[i][s] = {
-                                    {2{input_norm_variant[i][s][`BG_BUCKET_WIDTH-1]}},
-                                    input_norm_variant[i][s]
-                                };
-                                input_carry_variant[i][s] =
-                                    (input_add_variant[i][s]-input_norm_ext_variant[i][s])
-                                    >>> `BG_EXP_PER_BUCKET;
-
-                                bucket_add_variant[i][s] = $signed({
-                                    {2{rotated_bucket_work[i][`BG_BUCKET_WIDTH-1]}},
-                                    rotated_bucket_work[i]
-                                }) + $signed({
-                                    {2{input_norm_variant[i][s][`BG_BUCKET_WIDTH-1]}},
-                                    input_norm_variant[i][s]
-                                });
-                                bucket_norm_variant[i][s] =
-                                    bucket_add_variant[i][s][`BG_BUCKET_WIDTH-1:0];
-                                bucket_norm_valid_variant[i][s] =
-                                    |bucket_norm_variant[i][s];
-                                bucket_norm_ext_variant[i][s] = {
-                                    {2{bucket_norm_variant[i][s][`BG_BUCKET_WIDTH-1]}},
-                                    bucket_norm_variant[i][s]
-                                };
-                                bucket_carry_variant[i][s] =
-                                    (bucket_add_variant[i][s]-bucket_norm_ext_variant[i][s])
-                                    >>> `BG_EXP_PER_BUCKET;
-                                total_carry_variant[i][s] = input_carry_variant[i][s]
-                                                          + bucket_carry_variant[i][s];
-                                transition_l0[i][s] = total_carry_variant[i][s]
-                                                     + 4'sd2;
-                            end
-                        end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            for(int s = 0; s < CARRY_STATE_COUNT; s++) begin
-                                if(i < `BG_BUCKET_COUNT-1)
-                                    transition_l1[i][s] =
-                                        transition_l0[i][transition_l0[i+1][s]];
-                                else
-                                    transition_l1[i][s] = transition_l0[i][s];
-                            end
-                        end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            for(int s = 0; s < CARRY_STATE_COUNT; s++) begin
-                                if(i < `BG_BUCKET_COUNT-2)
-                                    transition_l2[i][s] =
-                                        transition_l1[i][transition_l1[i+2][s]];
-                                else
-                                    transition_l2[i][s] = transition_l1[i][s];
-                            end
-                        end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            for(int s = 0; s < CARRY_STATE_COUNT; s++) begin
-                                if(i < `BG_BUCKET_COUNT-4)
-                                    transition_l3[i][s] =
-                                        transition_l2[i][transition_l2[i+4][s]];
-                                else
-                                    transition_l3[i][s] = transition_l2[i][s];
-                            end
-                        end
-
-                        carry_in_state_work[`BG_BUCKET_COUNT-1] = CARRY_ZERO;
-                        for(int i = 0; i < `BG_BUCKET_COUNT-1; i++) begin
-                            carry_in_state_work[i] = transition_l3[i+1][CARRY_ZERO];
-                        end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            updated_bucket_work[i] =
-                                bucket_norm_variant[i][carry_in_state_work[i]];
-                            updated_bucket_valid_work[i] =
-                                bucket_norm_valid_variant[i][carry_in_state_work[i]];
-                        end
-
-                        top_input_carry_work =
-                            input_carry_variant[0][carry_in_state_work[0]];
-                        top_bucket_carry_work =
-                            bucket_carry_variant[0][carry_in_state_work[0]];
-                        top_input_digit_work =
-                            input_norm_variant[0][carry_in_state_work[0]];
-                        top_input_digit_valid_work =
-                            input_norm_valid_variant[0][carry_in_state_work[0]];
-
-                        if(top_bucket_carry_work != 0) begin
-                            spill_push_valid = rotated_bucket_work[0] != 0;
-                            spill_push_sign = rotated_bucket_work[0][`BG_BUCKET_WIDTH-1];
-                            spill_push_mag = BUCKET_MAG(rotated_bucket_work[0]);
-                            spill_push_exp = active_emax_work;
-                            updated_bucket_work[0] = top_input_digit_work;
-                            updated_bucket_valid_work[0] = top_input_digit_valid_work;
-                        end
-
-                        extra_top_work = top_input_carry_work != 0;
-                        tail_bucket_work = updated_bucket_work[`BG_BUCKET_COUNT-1];
-                        tail_bucket_valid_work =
-                            updated_bucket_valid_work[`BG_BUCKET_COUNT-1];
-                        if(extra_top_work) begin
-                            tail_bucket_work = {
-                                {(`BG_BUCKET_WIDTH-3){top_input_carry_work[2]}},
-                                top_input_carry_work
-                            };
-                            tail_bucket_valid_work = 1'b1;
-                            final_emax_work = active_emax_work + `BG_EXP_PER_BUCKET;
-                            final_front_ptr_work = PTR_INC(active_front_ptr_work);
-                        end
-                        else begin
-                            final_emax_work = active_emax_work;
-                            final_front_ptr_work = active_front_ptr_work;
-                        end
-
-                        for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
-                            bucket_next[i] = '0;
-                            bucket_valid_next[i] = 1'b0;
-                        end
-
-                        case(active_front_ptr_work)
-                            3'd0: begin
-                                bucket_next[0] = updated_bucket_work[0];
-                                bucket_next[1] = tail_bucket_work;
-                                bucket_next[2] = updated_bucket_work[4];
-                                bucket_next[3] = updated_bucket_work[3];
-                                bucket_next[4] = updated_bucket_work[2];
-                                bucket_next[5] = updated_bucket_work[1];
-                                bucket_valid_next[0] = updated_bucket_valid_work[0];
-                                bucket_valid_next[1] = tail_bucket_valid_work;
-                                bucket_valid_next[2] = updated_bucket_valid_work[4];
-                                bucket_valid_next[3] = updated_bucket_valid_work[3];
-                                bucket_valid_next[4] = updated_bucket_valid_work[2];
-                                bucket_valid_next[5] = updated_bucket_valid_work[1];
-                            end
-                            3'd1: begin
-                                bucket_next[0] = updated_bucket_work[1];
-                                bucket_next[1] = updated_bucket_work[0];
-                                bucket_next[2] = tail_bucket_work;
-                                bucket_next[3] = updated_bucket_work[4];
-                                bucket_next[4] = updated_bucket_work[3];
-                                bucket_next[5] = updated_bucket_work[2];
-                                bucket_valid_next[0] = updated_bucket_valid_work[1];
-                                bucket_valid_next[1] = updated_bucket_valid_work[0];
-                                bucket_valid_next[2] = tail_bucket_valid_work;
-                                bucket_valid_next[3] = updated_bucket_valid_work[4];
-                                bucket_valid_next[4] = updated_bucket_valid_work[3];
-                                bucket_valid_next[5] = updated_bucket_valid_work[2];
-                            end
-                            3'd2: begin
-                                bucket_next[0] = updated_bucket_work[2];
-                                bucket_next[1] = updated_bucket_work[1];
-                                bucket_next[2] = updated_bucket_work[0];
-                                bucket_next[3] = tail_bucket_work;
-                                bucket_next[4] = updated_bucket_work[4];
-                                bucket_next[5] = updated_bucket_work[3];
-                                bucket_valid_next[0] = updated_bucket_valid_work[2];
-                                bucket_valid_next[1] = updated_bucket_valid_work[1];
-                                bucket_valid_next[2] = updated_bucket_valid_work[0];
-                                bucket_valid_next[3] = tail_bucket_valid_work;
-                                bucket_valid_next[4] = updated_bucket_valid_work[4];
-                                bucket_valid_next[5] = updated_bucket_valid_work[3];
-                            end
-                            3'd3: begin
-                                bucket_next[0] = updated_bucket_work[3];
-                                bucket_next[1] = updated_bucket_work[2];
-                                bucket_next[2] = updated_bucket_work[1];
-                                bucket_next[3] = updated_bucket_work[0];
-                                bucket_next[4] = tail_bucket_work;
-                                bucket_next[5] = updated_bucket_work[4];
-                                bucket_valid_next[0] = updated_bucket_valid_work[3];
-                                bucket_valid_next[1] = updated_bucket_valid_work[2];
-                                bucket_valid_next[2] = updated_bucket_valid_work[1];
-                                bucket_valid_next[3] = updated_bucket_valid_work[0];
-                                bucket_valid_next[4] = tail_bucket_valid_work;
-                                bucket_valid_next[5] = updated_bucket_valid_work[4];
-                            end
-                            3'd4: begin
-                                bucket_next[0] = updated_bucket_work[4];
-                                bucket_next[1] = updated_bucket_work[3];
-                                bucket_next[2] = updated_bucket_work[2];
-                                bucket_next[3] = updated_bucket_work[1];
-                                bucket_next[4] = updated_bucket_work[0];
-                                bucket_next[5] = tail_bucket_work;
-                                bucket_valid_next[0] = updated_bucket_valid_work[4];
-                                bucket_valid_next[1] = updated_bucket_valid_work[3];
-                                bucket_valid_next[2] = updated_bucket_valid_work[2];
-                                bucket_valid_next[3] = updated_bucket_valid_work[1];
-                                bucket_valid_next[4] = updated_bucket_valid_work[0];
-                                bucket_valid_next[5] = tail_bucket_valid_work;
-                            end
-                            3'd5: begin
-                                bucket_next[0] = tail_bucket_work;
-                                bucket_next[1] = updated_bucket_work[4];
-                                bucket_next[2] = updated_bucket_work[3];
-                                bucket_next[3] = updated_bucket_work[2];
-                                bucket_next[4] = updated_bucket_work[1];
-                                bucket_next[5] = updated_bucket_work[0];
-                                bucket_valid_next[0] = tail_bucket_valid_work;
-                                bucket_valid_next[1] = updated_bucket_valid_work[4];
-                                bucket_valid_next[2] = updated_bucket_valid_work[3];
-                                bucket_valid_next[3] = updated_bucket_valid_work[2];
-                                bucket_valid_next[4] = updated_bucket_valid_work[1];
-                                bucket_valid_next[5] = updated_bucket_valid_work[0];
-                            end
-                            default: begin
-                                bucket_next[0] = updated_bucket_work[0];
-                                bucket_next[1] = tail_bucket_work;
-                                bucket_next[2] = updated_bucket_work[4];
-                                bucket_next[3] = updated_bucket_work[3];
-                                bucket_next[4] = updated_bucket_work[2];
-                                bucket_next[5] = updated_bucket_work[1];
-                                bucket_valid_next[0] = updated_bucket_valid_work[0];
-                                bucket_valid_next[1] = tail_bucket_valid_work;
-                                bucket_valid_next[2] = updated_bucket_valid_work[4];
-                                bucket_valid_next[3] = updated_bucket_valid_work[3];
-                                bucket_valid_next[4] = updated_bucket_valid_work[2];
-                                bucket_valid_next[5] = updated_bucket_valid_work[1];
-                            end
-                        endcase
 
                         emax_valid_next = 1'b1;
-                        emax_base_next = final_emax_work;
-                        front_ptr_next = final_front_ptr_work;
+                        emax_base_next = active_emax_work;
+                        front_ptr_next = active_front_ptr_work;
+                        bucket_valid_next = active_valid_work;
                     end
 
-                    if(i_last) begin
-                        drain_offset_next = '0;
-                        state_next = S_DRAIN;
+                    if(service_data_work != 0 && !selected_in_bound_work)
+                        profile_oob_drop = 1'b1;
+
+                    if(selected_in_bound_work && selected_data_work != 0) begin
+                        selected_offset_work =
+                            (active_emax_work-selected_base_work)
+                            >>> `BG_BUCKET_SHIFT_W;
+                        selected_ptr_work = PTR_SUB(
+                            active_front_ptr_work,
+                            selected_offset_work
+                        );
+                        selected_is_max_work = selected_offset_work == 0;
+
+                        if(active_valid_work[selected_ptr_work])
+                            selected_bucket_work = bucket_reg[selected_ptr_work];
+                        else
+                            selected_bucket_work = '0;
+
+                        selected_sum_work = $signed({
+                            {(`BG_UPDATE_W-`BG_BUCKET_WIDTH){
+                                selected_bucket_work[`BG_BUCKET_WIDTH-1]
+                            }},
+                            selected_bucket_work
+                        }) + $signed({
+                            {(`BG_UPDATE_W-`BG_WORK_W){
+                                selected_data_work[`BG_WORK_W-1]
+                            }},
+                            selected_data_work
+                        });
+                        selected_result_work =
+                            selected_sum_work[`BG_BUCKET_WIDTH-1:0];
+                        selected_result_ext_work = {
+                            {(`BG_UPDATE_W-`BG_BUCKET_WIDTH){
+                                selected_result_work[`BG_BUCKET_WIDTH-1]
+                            }},
+                            selected_result_work
+                        };
+                        selected_carry_work =
+                            (selected_sum_work-selected_result_ext_work)
+                            >>> `BG_EXP_PER_BUCKET;
+
+                        bucket_next[selected_ptr_work] = selected_result_work;
+                        bucket_valid_next[selected_ptr_work] =
+                            |selected_result_work;
+                        profile_bucket_update = 1'b1;
+
+                        if(selected_carry_work != 0) begin
+                            if(selected_is_max_work) begin
+                                selected_mag_work = selected_sum_work[
+                                    `BG_UPDATE_W-1
+                                ] ? -selected_sum_work : selected_sum_work;
+                                spill_push_valid = 1'b1;
+                                spill_push_sign = selected_sum_work[
+                                    `BG_UPDATE_W-1
+                                ];
+                                spill_push_mag = selected_mag_work[
+                                    `BFP_MAG_W-1:0
+                                ];
+                                spill_push_exp = selected_base_work;
+                                bucket_next[selected_ptr_work] = '0;
+                                bucket_valid_next[selected_ptr_work] = 1'b0;
+                                profile_fp_flush = 1'b1;
+                            end
+                            else begin
+                                carry_positive_work = selected_carry_work == 1;
+                                carry_negative_work = selected_carry_work == -1;
+                                prefix_supported_work = carry_positive_work
+                                                      || carry_negative_work;
+                                profile_carry_event = prefix_supported_work;
+
+                                for(int i = 0; i < `BG_BUCKET_COUNT-1; i++) begin
+                                    chain_ptr_work[i] = PTR_ADD(
+                                        selected_ptr_work,
+                                        i+1
+                                    );
+                                    if(i < selected_offset_work) begin
+                                        chain_full_work[i] =
+                                            active_valid_work[chain_ptr_work[i]]
+                                            && &bucket_reg[chain_ptr_work[i]];
+                                        chain_empty_work[i] =
+                                            !active_valid_work[chain_ptr_work[i]]
+                                            || ~|bucket_reg[chain_ptr_work[i]];
+                                        chain_carry_in_work[i] = 1'b1;
+                                        for(int j = 0; j < `BG_BUCKET_COUNT-1; j++) begin
+                                            if(j < i) begin
+                                                if(carry_positive_work)
+                                                    chain_carry_in_work[i] =
+                                                        chain_carry_in_work[i]
+                                                        && chain_full_work[j];
+                                                else if(carry_negative_work)
+                                                    chain_carry_in_work[i] =
+                                                        chain_carry_in_work[i]
+                                                        && chain_empty_work[j];
+                                                else
+                                                    chain_carry_in_work[i] = 1'b0;
+                                            end
+                                        end
+
+                                        chain_zero_work[i] = carry_positive_work
+                                                           && chain_carry_in_work[i]
+                                                           && chain_full_work[i];
+                                        chain_fill_work[i] = carry_negative_work
+                                                           && chain_carry_in_work[i]
+                                                           && chain_empty_work[i];
+                                        chain_inc_work[i] = carry_positive_work
+                                                          && chain_carry_in_work[i]
+                                                          && !chain_full_work[i];
+                                        chain_dec_work[i] = carry_negative_work
+                                                          && chain_carry_in_work[i]
+                                                          && !chain_empty_work[i];
+
+                                        if(chain_carry_in_work[i])
+                                            carry_depth_work = i+1;
+                                        if(chain_zero_work[i]) begin
+                                            bucket_next[chain_ptr_work[i]] = '0;
+                                            bucket_valid_next[chain_ptr_work[i]] = 1'b0;
+                                        end
+                                        else if(chain_fill_work[i]) begin
+                                            bucket_next[chain_ptr_work[i]] = '1;
+                                            bucket_valid_next[chain_ptr_work[i]] = 1'b1;
+                                        end
+                                        else if(chain_inc_work[i]) begin
+                                            bucket_next[chain_ptr_work[i]] =
+                                                bucket_reg[chain_ptr_work[i]] + 1'b1;
+                                            bucket_valid_next[chain_ptr_work[i]] = 1'b1;
+                                        end
+                                        else if(chain_dec_work[i]) begin
+                                            bucket_next[chain_ptr_work[i]] =
+                                                bucket_reg[chain_ptr_work[i]] - 1'b1;
+                                            bucket_valid_next[chain_ptr_work[i]] = 1'b1;
+                                        end
+
+                                        if(i == selected_offset_work-1) begin
+                                            carry_reaches_top_work =
+                                                (carry_positive_work
+                                                 && chain_carry_in_work[i]
+                                                 && chain_full_work[i])
+                                                || (carry_negative_work
+                                                 && chain_carry_in_work[i]
+                                                 && chain_empty_work[i]);
+                                        end
+                                    end
+                                end
+
+                                profile_carry_hop = prefix_supported_work;
+                                profile_carry_depth = carry_depth_work;
+                                profile_multi_hop = carry_depth_work > 1;
+
+                                if(carry_reaches_top_work) begin
+                                    spill_push_valid = 1'b1;
+                                    spill_push_sign = carry_negative_work;
+                                    spill_push_mag = {{(`BFP_MAG_W-1){1'b0}}, 1'b1};
+                                    spill_push_exp = active_emax_work
+                                                   + `BG_EXP_PER_BUCKET;
+                                    profile_fp_flush = 1'b1;
+                                end
+                                else if(!prefix_supported_work) begin
+                                    prefix_spill_value_work = selected_sum_work;
+                                    selected_mag_work = prefix_spill_value_work[
+                                        `BG_UPDATE_W-1
+                                    ] ? -prefix_spill_value_work
+                                      : prefix_spill_value_work;
+                                    spill_push_valid = 1'b1;
+                                    spill_push_sign = prefix_spill_value_work[
+                                        `BG_UPDATE_W-1
+                                    ];
+                                    spill_push_mag = selected_mag_work[
+                                        `BFP_MAG_W-1:0
+                                    ];
+                                    spill_push_exp = selected_base_work;
+                                    bucket_next[selected_ptr_work] = '0;
+                                    bucket_valid_next[selected_ptr_work] = 1'b0;
+                                    profile_fp_flush = 1'b1;
+                                end
+                            end
+                        end
                     end
+
+                    if(service_last_work)
+                        drain_pending_next = 1'b1;
+                end
+
+                if(drain_pending_next
+                   && fifo_count_next == 0) begin
+                    drain_offset_next = '0;
+                    state_next = S_DRAIN;
                 end
             end
 
@@ -586,32 +554,30 @@ module BG_ACC(
                 drain_base_work = emax_base_reg
                                 - drain_offset_reg*`BG_EXP_PER_BUCKET;
                 spill_push_valid = bucket_valid_reg[drain_ptr_work];
-                spill_push_sign = bucket_reg[drain_ptr_work][`BG_BUCKET_WIDTH-1];
+                spill_push_sign = bucket_reg[drain_ptr_work][
+                    `BG_BUCKET_WIDTH-1
+                ];
                 spill_push_mag = BUCKET_MAG(bucket_reg[drain_ptr_work]);
                 spill_push_exp = drain_base_work;
 
                 if(!bucket_valid_reg[drain_ptr_work] || spill_slot_ready) begin
-                    bucket_next[drain_ptr_work] = '0;
                     bucket_valid_next[drain_ptr_work] = 1'b0;
-
-                    if(drain_offset_reg == `BG_BUCKET_COUNT-1) begin
+                    if(drain_offset_reg == `BG_BUCKET_COUNT-1)
                         state_next = S_WAIT;
-                    end
-                    else begin
+                    else
                         drain_offset_next = drain_offset_reg + 1'b1;
-                    end
                 end
             end
 
             S_WAIT: begin
-                if(!spill_valid_reg || i_spill_ready) begin
-                    o_done = 1'b1;
+                if(!spill_valid_reg || spill_ready) begin
+                    done = 1'b1;
                     state_next = S_DONE;
                 end
             end
 
             S_DONE: begin
-                o_done = 1'b0;
+                done = 1'b0;
             end
 
             default: begin
@@ -620,13 +586,18 @@ module BG_ACC(
         endcase
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin : p_bucket_registers
+    always_ff @(posedge clk or negedge rst_n) begin : p_registers
         if(!rst_n) begin
             state_reg <= S_ACC;
             bucket_valid_reg <= '0;
             emax_valid_reg <= 1'b0;
             emax_base_reg <= '0;
             front_ptr_reg <= '0;
+            fifo_rd_ptr_reg <= '0;
+            fifo_wr_ptr_reg <= '0;
+            fifo_count_reg <= '0;
+            last_queued_reg <= 1'b0;
+            drain_pending_reg <= 1'b0;
             drain_offset_reg <= '0;
             spill_valid_reg <= 1'b0;
             spill_sign_reg <= 1'b0;
@@ -635,13 +606,24 @@ module BG_ACC(
             for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
                 bucket_reg[i] <= '0;
             end
+            for(int i = 0; i < `BG_FIFO_DEPTH; i++) begin
+                fifo_data_reg[i] <= '0;
+                fifo_base_reg[i] <= '0;
+                fifo_top_base_reg[i] <= '0;
+                fifo_last_reg[i] <= 1'b0;
+            end
         end
-        else if(i_start) begin
+        else if(acc_clear) begin
             state_reg <= S_ACC;
             bucket_valid_reg <= '0;
             emax_valid_reg <= 1'b0;
             emax_base_reg <= '0;
             front_ptr_reg <= '0;
+            fifo_rd_ptr_reg <= '0;
+            fifo_wr_ptr_reg <= '0;
+            fifo_count_reg <= '0;
+            last_queued_reg <= 1'b0;
+            drain_pending_reg <= 1'b0;
             drain_offset_reg <= '0;
             spill_valid_reg <= 1'b0;
             spill_sign_reg <= 1'b0;
@@ -649,6 +631,12 @@ module BG_ACC(
             spill_exp_reg <= '0;
             for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
                 bucket_reg[i] <= '0;
+            end
+            for(int i = 0; i < `BG_FIFO_DEPTH; i++) begin
+                fifo_data_reg[i] <= '0;
+                fifo_base_reg[i] <= '0;
+                fifo_top_base_reg[i] <= '0;
+                fifo_last_reg[i] <= 1'b0;
             end
         end
         else begin
@@ -657,7 +645,13 @@ module BG_ACC(
             emax_valid_reg <= emax_valid_next;
             emax_base_reg <= emax_base_next;
             front_ptr_reg <= front_ptr_next;
+            fifo_rd_ptr_reg <= fifo_rd_ptr_next;
+            fifo_wr_ptr_reg <= fifo_wr_ptr_next;
+            fifo_count_reg <= fifo_count_next;
+            last_queued_reg <= last_queued_next;
+            drain_pending_reg <= drain_pending_next;
             drain_offset_reg <= drain_offset_next;
+
             if(spill_slot_ready) begin
                 spill_valid_reg <= spill_push_valid;
                 if(spill_push_valid) begin
@@ -666,8 +660,15 @@ module BG_ACC(
                     spill_exp_reg <= spill_push_exp;
                 end
             end
+
             for(int i = 0; i < `BG_BUCKET_COUNT; i++) begin
                 bucket_reg[i] <= bucket_next[i];
+            end
+            for(int i = 0; i < `BG_FIFO_DEPTH; i++) begin
+                fifo_data_reg[i] <= fifo_data_next[i];
+                fifo_base_reg[i] <= fifo_base_next[i];
+                fifo_top_base_reg[i] <= fifo_top_base_next[i];
+                fifo_last_reg[i] <= fifo_last_next[i];
             end
         end
     end

@@ -2,9 +2,15 @@
 \label{sec:design}
 
 \subsection{Partial-Sum Concentration and DEWA}
-We observed the distribution of partial sums in LLaMA2-7B.
-Three representative layers under the BFP4 format were selected for illustration (Fig.~\ref{fig:bfp4_exponent_dist}).
-The partial-sum distribution remains highly concentrated, indicating that a low-cost accumulator with a narrow dynamic range can be introduced prior to forwarding data to the FP-Acc.
+We observed the distribution of partial sums in LLaMA2-7B (Fig.~\ref{fig:bfp4_exponent_dist}).
+The distribution remains highly concentrated, indicating that a low-cost accumulator with a narrow dynamic range can be introduced prior to forwarding data to the FP-Acc.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/bfp4_exponent_distribution.pdf}
+    \caption{BFP4 partial-sum exponent distributions on three LLaMA2-7B layers (group size 16). The shaded band is the observed full span.}
+    \label{fig:bfp4_exponent_dist}
+\end{figure}
 
 Specifically, we define an accumulation window
 \begin{equation}
@@ -44,7 +50,7 @@ Paired with 4-bit mantissas, the full configuration is denoted W-BFP4 / T2A-BiE4
     \centering
     \caption{Outlier occupancy per G16 activation block (W-BFP4/A-BiE4, LLaMA2-7B).}
     \label{tab:outlier_count}
-    \begin{tabular}{crr}
+    \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}ccc}
         \toprule
         Outliers per block & Block count & Block percentage \\
         \midrule
@@ -53,7 +59,7 @@ Paired with 4-bit mantissas, the full configuration is denoted W-BFP4 / T2A-BiE4
         2 & 241{,}189{,}169 & \textbf{1.00\%} \\
         $\geq 3$ & 141{,}941{,}990 & 0.59\% \\
         \bottomrule
-    \end{tabular}
+    \end{tabular*}
 \end{table}
 
 Activation-only BiE and Top-2 capping have negligible impact on LLaMA2-7B perplexity relative to full BiE.

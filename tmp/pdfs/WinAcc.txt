@@ -1,0 +1,747 @@
+                                  2025 Design, Automation & Test in Europe Conference (DATE 2025)
+
+
+
+
+         WinAcc: Window-based Acceleration of Neural
+             Networks Using Block Floating Point
+            Xin Ju, Jun He, Mei WenB , Jing Feng, Yasong Cao, Junzhong Shen, Zhaoyun Chen, and Yang Shi
+                                    School of Computer, National University of Defense Technology
+                                   Key Laboratory of Advanced Microprocessor Chips and Systems
+                                                      Changsha, 410073, China
+                  {jx, hejun19, meiwen, fengjing22, caoyasong, shenjunzhong, chenzhaoyun, shiyang14}@nudt.edu.cn
+
+
+    Abstract—Deep Neural Networks (DNNs) impose significant                                                                         100
+                                                                                     FAST                           INT-Acc                          Area               Energy
+ computational demands, necessitating optimizations for compu-
+                                                                                                                +
+
+
+
+
+                                                                                                                              Normalized (%)
+                                                                                            IDot                                          75
+ tational and energy efficiencies. Per-vector scaling, which applies                                                                                71%
+ a scaling factor to blocks of elements using narrow integer types,
+                                                                                                                                          50
+ effectively reduces storage and computational overhead. However,
+ the frequent occurrence of floating-point accumulations between
+                                                                                          FP-Acc               …                          25
+                                                                                                                                                   performance
+                                                                                                                                                              IDot        FP-Acc
+ vectors limits further improvements in energy efficiency. State-                         FP-Reg                                                              INT-Acc     FP-Reg
+ of-the-art accelerators address this challenge by grouping and                                                                                0
+ summing vector products based on their exponent differences,                                                                                      FAST   Bucket   FAST   Bucket
+ thereby reducing the overhead associated with intra-group shift-                     (a) Bucket: FAST + INT-Acc           (b) Area and energy
+ ing and accumulation. Nevertheless, this approach increases the
+ complexity of register usage and grouping logic, leading to limited                     Fig. 1: BFP-PEs Architecture and Resource Analysis.
+ energy benefits and hardware efficiency.
+    In this context, we introduce WinAcc, a novel algorithm and                     with its own scaling factor. [10] offers configurable bit-widths
+ architecture co-designed solution that utilizes a low-cost accumu-                 for scaling factors and mantissas, while [6] uses a fixed 8-
+ lator to handle the majority of data in DNNs, offering low area                    bit scaling factor with statically configurable mantissa sizes
+ overhead and high energy efficiency gains. Our key insight is                      of 2, 3, or 4 bits. Although all of these approaches convert
+ that the data of DNNs follows a Laplace-like distribution, which
+ enables the use of a customized data format with a narrow
+                                                                                    FP operations into INT operations within blocks, [6] is the
+ dynamic range to encode most of the data. This allows for the                      simplest and most efficient. However, while INT operations
+ design of a low-cost accumulator with narrow shifters and adders,                  are used within blocks, inter-block accumulation still relies on
+ significantly reducing reliance on floating-point accumulator and                  FP accumulator (FP-Acc) [4], [9], limiting potential reductions
+ consequently improving energy efficiency. Compared with state-                     in energy and area overhead, e.g., FAST [4]. Bucket [5] intro-
+ of-the-art architecture Bucket, WinAcc achieves 33.95% energy
+ reduction across seven representative DNNs and reduces area by
+                                                                                    duces an INT accumulator (INT-Acc) before FP-Acc, grouping
+ 9.5% while maintaining superior model performance.                                 operands based on their exponents and combining those with
+    Index Terms—Floating-point accumulation, block floating point,                  close exponents. This approach reduces the overhead associated
+ data distribution, Deep Neural Networks                                            with shift alignment and addition within groups. Nevertheless,
+                                                                                    it incurs increased hardware area due to the added complexity
+                            I. I NTRODUCTION                                        of grouping logic and register requirements. Additionally, FP-
+    Deep Neural Networks (DNNs) have achieved remarkable                            Acc remains necessary for inter-group accumulation, which
+ advancements, but these improvements come with signifi-                            limits the overall efficiency improvements, as illustrated in
+ cant storage and computational demands. To address these                           Fig. 1. Consequently, the expensive FP-Acc remains a bot-
+ challenges, various model compression techniques have been                         tleneck in the energy and area efficiencies of state-of-the-art
+ proposed [1], [2], with per-vector scaling [3] standing out                        architectures.
+ as a promising solution. Per-vector scaling converts blocks                           To address these challenges, we propose a low-cost accu-
+ of conventional floating-point (FP) data into sign-magnitude                       mulator (LC-Acc) that employs simplified shifters and adders
+ integers with a scaling factor, following the block floating-                      with a narrow accumulation range, eliminating the need for
+ point (BFP) format. This conversion replaces power-intensive                       additional grouping logic and registers. Positioned before FP-
+ FP operations, including shift alignment and normalization,                        Acc, LC-Acc handles a significant portion of data, reducing
+ with more efficient integer (INT) operations, while also reduc-                    the reliance on FP-Acc. While this design decreases hardware
+ ing storage requirements. As a result, per-vector scaling has                      area, it increases the activation frequency of FP-Acc, leading to
+ gained considerable attention in both academia [4], [5] and                        higher energy overhead compared to Bucket. To mitigate this,
+ industry [6]–[8] for its potential to optimize performance while                   we leverage the observation that DNN data follows a Laplace-
+ minimizing resource usage.                                                         like distribution [11], and introduce an AutoWin algorithm,
+    Several works have introduced customized data formats                           which dynamically selects a window to capture the majority
+ based on BFP [6], [9], [10]. For instance, [9] quantizes each                      of data across tensors. We then design a customized data
+ vector as a superposition of multiple subword vectors, each                        format, WinFloat, to efficiently encode data both inside and
+
+
+
+
+                                                                                                         978-3-9826741-0-0/DATE25/© 2025 EDAA
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+ outside the window. Additionally, we develop a hardware-                                   Sign     Exp    Man           Activation Weight        Product items
+ efficient WinFloat decoder and enhance the LC-Acc to handle                           31          22         0     0.8
+
+ data from windows of varying sizes and positions. This not                                                         0.6
+ only significantly reduces overall power consumption but also                                       × 16
+ enables the FP-Acc to be shared across multiple processing                                                         0.4
+
+ elements (PEs), thereby alleviating area overhead.                                     (a) IEEE-754 FP32
+                                                                                                                    0.2
+    Our key contributions are as follows:                                              7 02 0
+                                                                                                 × 16               0.0
+    • We propose a window search algorithm, AutoWin, that                               (b) MSFP-12 g = 16                -10.0   0.0 -0.2 0.0 0.2 -2.5   0.0   2.5
+      efficiently identifies a minimal window based on tensor
+      distribution to capture the maximum amount of data.                             Fig. 2: Data formats.          Fig. 3: Data distribution in DNNs.
+    • We introduce a window-aware floating-point data format,
+      WinFloat, where both the exponent bit-width and bias are
+      configurable based on the window’s characteristics.                                                          C =A×W                                       (1)
+    • We design a window-based architecture, WinAcc, that                                                     pm k n = am k × w k n                             (2)
+      integrates a configurable LC-Acc for efficiently processing                                                g
+                                                                                                                       Xg        g
+
+
+      data within the window, and a shared FP-Acc for handling                                                  cmn =      pm k n                               (3)
+                                                                                                                                     g
+      outliers to significantly reduce the energy and area over-
+                                                                                    B. Motivation
+      head.
+    • WinAcc achieves a 68.87% and 33.95% reduction in en-                             Several works have shown that the weight and activation
+      ergy, and a 22.9% and 9.5% reduction in area, compared                        matrices in DNNs follow a Laplace-like distribution [11], [15],
+      to the state-of-the-art accelerators FAST and Bucket, re-                     [16]. In this work, we specifically focus on the characteristics
+      spectively.                                                                   of the element-wise product, which also exhibits a similar
+                                                                                    Laplace-like distribution with a wide dynamic range and long-
+                                                                                    tail outliers, as depicted in Fig. 3. By leveraging the unique
+                II. BACKGROUND AND M OTIVATION                                      properties of the element-wise product, we identify a new
+                                                                                    opportunity to optimize accumulator architectures for improved
+ A. Per-vector Scaling                                                              energy efficiency.
+                                                                                       However, previous works have primarily focused on
+    The IEEE-754 standard single-precision floating-point                           hardware-level optimizations, there remains a need for a more
+ (FP32) format [12], as shown in Fig. 2(a), consists of a 1-                        efficient architecture that better aligns with the underlying
+ bit sign, an 8-bit exponent, and a 23-bit mantissa. This format                    data distribution. In response to this demand, we propose
+ offers a wide dynamic range (28 ) and high precision ( 2123 ), but                 WinAcc, which employs an LC-Acc with a reduced dynamic
+ at the cost of significant computational overhead, e.g., 256-bit                   range to process the majority of densely distributed values,
+ shifters and 279-bit adders [13]. Per-vector scaling addresses                     while reserving an FP-Acc for handling long-tail outliers.
+ this issue by quantizing FP vectors into integers with shared                      This approach minimizes the use of the FP-Acc, significantly
+ scaling factors, thereby amortizing the storage of exponents                       improving energy efficiency. Furthermore, the FP-Acc is shared
+ across multiple mantissas and enabling INT operations within                       across multiple PEs, reducing area overhead. To the best of our
+ vectors. MSFP [6] is a notable example of this approach, using                     knowledge, this is the first work to leverage data distribution
+ an 8-bit shared scaling factor that is a power of two, which                       characteristics in BFP-based architectures, which advances the
+ simplifies hardware design. Fig. 2(b) illustrates the MSFP-12                      state-of-the-art BFP-based accelerators by significantly improv-
+ data format, where the mantissa is represented as a 2-bit two’s                    ing both energy and area efficiencies.
+ complement value.
+    Matrix multiplication is the primary computational pattern                                 III. W INDOW- BASED DATA REPRESENTATION
+ in DNNs [14], as described in Eqs. (1–3). In this process,                         A. AutoWin Algorithm
+ am k , w k n , cmn represent elements of the activation matrix                        In Section II-B, we observe that the element-wise product
+     g    g
+ AM ×K , the weight matrix WK×N , and the output matrix                             in BFPs tends to concentrate within a major portion of the
+ CM ×N , respectively. These matrices are grouped by common                         value range. This concentration allows us to use a low-cost
+ dimensions according to the grouping factor g, and pm k n rep-                     accumulator with a narrow accumulation range to efficiently
+                                                          g
+ resents the element-wise product. To maintain model accuracy,                      handle these values. The key challenge is identifying a window
+ the grouping factor must remain relatively small, typically set                    that can optimally capture this range. To address this, we
+ to 16 [4], [7], [9]. The FP-Acc is required for inter-group                        propose the AutoWin algorithm, which determines the optimal
+ accumulation (Eq. 3), while intra-group operations consist of                      window size and position, defining the exponent bit-width and
+ simple INT dot products (Eq. 2). However, the frequent inter-                      bias for encoding. The input to AutoWin includes a weight
+ group accumulations using FP32, occurring M N (K−1)g       times,                  matrix W , an activation matrix A, and a threshold T , as
+ result in significant energy overhead, making it a critical issue                  described in Algo. 1. The process involves three main steps:
+ that must be addressed.                                                            (1) Compute the exponent vector based on the element-wise
+
+
+
+
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+ product, P Exp. (2) Select window: initialize the window pa-                                            E8-B127    E4-B7    E4-B2    E3-B3
+ rameters, ExpW and Bias. The window interval is calculated
+ as [1−Bias, 2ExpW −2−Bias]. Then shift the window left and
+ right to identify the position that covers the maximum amount
+                                                                                       1                            (a) Mantissa                            2
+ of data. (3) Return exponent bit-width ExpW and bias Bias
+ if the proportion of elements in the window is greater than the
+ given threshold T , otherwise increase ExpW . Note that we
+ only execute the AuToWin algorithm once per tensor, because
+                                                                                    -126                    -6      -2 -1     3      7     12              127
+ the distribution of tensors remains roughly similar, which has
+ been exploited by many previous works [11], [17], [18].
+                                                                                                                (b) Exponent
+                                                                                                 Fig. 4: Different WinFloat configuration.
+   Algorithm 1: AutoWin algorithm
+                                                                                        𝒂𝟎 ∙ 𝒘𝟎 + 𝒂𝟏 ∙ 𝒘𝟏 + 𝒂𝟐 ∙ 𝒘𝟐 + 𝒂𝟑 ∙ 𝒘𝟑 + 𝒂𝟒 ∙ 𝒘𝟒 + 𝒂𝟓 ∙ 𝒘𝟓
+     input : Weight: W ; Activation: A; Threshold: T                                = 1 × 2−10 + 2 × 2−5+ 3 × 2−5+ 4 × 2−4 + 5 × 2−4 + 6 × 25
+     output: Exponent bit-width: ExpW ; Bias: Bias                                  = 1.5056 × 27
+  1 def Window(W, A, T):
+                                                                                                         (a) Accumulation example
+  2     P Exp = GetAWEleExp(W, A)                                                       𝒂𝟎 ∙ 𝒘𝟎 + 𝒂𝟏 ∙ 𝒘𝟏 + 𝒂𝟐 ∙ 𝒘𝟐 + 𝒂𝟑 ∙ 𝒘𝟑 + 𝒂𝟒 ∙ 𝒘𝟒 + 𝒂𝟓 ∙ 𝒘𝟓
+                                                                                    = 1 × 2−10 + 2 × 2−5+ 3 × 2−5+ 4 × 2−4 + 5 × 2−4 + 6 × 25
+  3     Bias = 2(ExpW −1) − 1−GetMosFreVal(P Exp)                                   = ((((1 × 2−10 + 2 × 2−5) + 3 × 2−5)+4 × 2−4) + 5 × 2−4) + 6 × 25
+  4     for each ExpW in [3, 4] do                                                  = 1.5056 × 27 (b) FAST accumulation strategy
+  5         W inEle = CountWin(P Exp, W in)
+  6         for each dir in Left, Right do                                             𝒂𝟎 ∙ 𝒘𝟎 + 𝒂𝟏 ∙ 𝒘𝟏 + 𝒂𝟐 ∙ 𝒘𝟐 + 𝒂𝟑 ∙ 𝒘𝟑 + 𝒂𝟒 ∙ 𝒘𝟒 + 𝒂𝟓 ∙ 𝒘𝟓
+  7             for each Shift in 1 → 6 do                                          = 1 × 2−10 + 2 × 2−5+ 3 × 2−5+ 4 × 2−4 + 5 × 2−4 + 6 × 25
+  8                 if dir == right/Left then
+   9                    BiasT = Bias ± Shif t                                       = Group1 + Group2 + Group3
+                                                                                    = 1.5056 × 27
+ 10                    W inEleT = CountWin(P Exp, W in)                                           (c) Bucket accumulation strategy
+ 11                    if W inEle < W inEleT then                                      𝒂𝟎 ∙ 𝒘𝟎 + 𝒂𝟏 ∙ 𝒘𝟏 + 𝒂𝟐 ∙ 𝒘𝟐 + 𝒂𝟑 ∙ 𝒘𝟑 + 𝒂𝟒 ∙ 𝒘𝟒 + 𝒂𝟓 ∙ 𝒘𝟓
+ 12                        W inEle = W inEleT
+                            Bias = BiasT                                            = 1 × 2−10 + 2 × 2−5+ 3 × 2−5+ 4 × 2−4 + 5 × 2−4 + 6 × 25
+
+ 13           if W inEle/T enEle > T then                                           = LC-Acc + FP-Acc
+ 14               return ExpW, Bias                                                 = 1.5056 × 27
+                                                                                               (d) Window-based accumulation strategy
+                                                                                       Fig. 5: Accumulate products using different strategies.
+
+ B. WinFloat Data Format                                                            additions, requiring five FP-Accs for accumulation. In contrast,
+    After obtaining the window, the original values are now split                   the Bucket strategy categorizes products into three groups based
+ into two parts, to represent values inside and outside different                   on their exponent, utilizing three registers to store intermediate
+ windows, we propose a customized data format, WinFloat.                            results and two FP-Accs for combining results between groups.
+ WinFloat is computed as shown in Eq. 4, maintaining the                            Our window-based approach improves this process by dividing
+ mantissa bit-width of 24, identical to that of FP32, thereby                       data into two regions: a minimal window, determined by the
+ preserving the same level of precision. The exponent bit-width                     data distribution, and the remaining data outside the window.
+ and bias are configurable parameters, as depicted in Fig. 4.                       Within the window, we employ three LC-Accs and only one
+ In this context, the notation Ex-By refers to an exponent bit-                     register, while data outside the window requires two FP-Accs.
+ width of x and a bias value of y. For example, E8-B127                             Compared to FAST, our approach reduces FP-Acc usage, and
+ corresponds to FP32, which provides a wide dynamic range of                        relative to Bucket, it requires fewer intermediate registers,
+ [-126, 127]. Similarly, E4-B7 and E3-B3 follow the IEEE-754                        thereby increasing energy efficiency.
+ standard but with narrower dynamic ranges of [-6, 7] and [-2,
+ 3], respectively, while E4-B2 offers a range of [-1, 12]. This                                          IV. WinAcc A RCHITECTURE
+ configurability allows WinFloat to adjust its data representation                  A. Overview
+ range through modifications to exponent bit-width and bias                            The overall architecture of WinAcc is depicted in Fig. 6. It
+ while maintaining full compatibility with FP32 format.                             is structured as a two-dimensional spatial array of PE groups,
+                                                                                    allowing weights and activations to be spatially shared while
+                Sign × 2Exponent−Bias × 1.M antissa                         (4)
+                                                                                    partial sums (Psum) are accumulated within each PE group. A
+    We compare FAST and Bucket accumulation strategies with                         PE group comprises multiple PEs that share a single FP-Acc,
+ our proposed window-based approach to highlight its advan-                         as illustrated on the right side of Fig. 6. Each PE includes an
+         PFig.
+ tages. In     5, we illustrate the accumulation of six product                     IDot product unit, three WinFloat decoders, an LC-Acc, and a
+           5
+ terms, i=0 ai wi . The FAST method performs element-wise                           shared FP-Acc.
+
+
+
+
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+                                                                  W             Psum
+                          Activation Buffer
+                                                                                       PE         WinL Addend WinR                       ea      eb        ma     mb
+                                                                  e      m
+                                                        m                                            Exp
+                                                    A                 IDot                                                              exp_diff          swap
+                     PE Group                           e
+                                                                                                                                              [2:0]
+   Weight Buffer
+
+
+
+
+                                                            +          LC-Acc                                                                            >>
+                     PE Group           PE Group
+                                                                                                         carry                                [3]
+                                                                                                                                                         >>
+                                                                             FIFO
+                     PE Group           PE Group
+                                                                Shared FP-Acc
+                                                                           FP-Reg
+                                Psum Buffer                                                                               0     1
+                                                                 Result             Decoder                                                 normalization
+                                                                                                                 LC-Acc       FP-Acc
+                       Fig. 6: Overview of WinAcc architecture.                                    (a) WinFloat decoder                (b) Low-cost accumulator
+    The IDot unit is a tree structure designed to perform the dot                                                   Fig. 7: WinAcc components.
+ product of two MSFP mantissa vectors. The three WinFloat
+ decoders are responsible for decoding the WinFloat data format                                            TABLE I: Evaluated Model and Dataset.
+ for the IDot, LC-Acc, and Psum, respectively. The LC-Acc ac-                                   Type               CNN-based                     Transformer-based
+ cumulates data inside the window, while the FP-Acc processes                                             Res34, 50 VGG16 Mob-v2          ViT        BERT        Llama2
+                                                                                               Model
+ data outside the window. Since the proportion of data outside                                              [19]      [20]     [21]       [22]        [23]         [24]
+                                                                                                                      ImageNet                    SQuAD v1.1 MMLU
+ the window is minimal, a single FP-Acc can be shared across                                   Dataset
+                                                                                                                        [25]                          [26]         [27]
+ multiple PEs, significantly reducing area overhead without
+ performance degradation.
+                                                                                              are encoded with a smaller dynamic range (as shown by the
+ B. WinFloat Decoder                                                                          dotted line in Fig. 7(b)). The accumulation process begins by
+    To efficiently decode WinFloat inputs and allocate them                                   calculating the exponent difference between operands, followed
+ between the LC-Acc and FP-Acc, we design a hardware-                                         by adjusting mantissa based on the exponent difference. The
+ friendly WinFloat decoder tailored for the AutoWin algorithm.                                smaller mantissa is aligned with the greater one using a shift
+ The input to the decoder includes left interval and right interval                           operation. After alignment, the smaller mantissa is added to
+ of the window, denoted as W inL and W inR, which are                                         the greater one. Finally, the result undergoes normalization to
+ computed by 1 − Bias and 2ExpW − 1 − Bias, respectively,                                     ensure proper precision, generating the final output. This design
+ along with the addend. If the exponent of the addend lies within                             ensures computational efficiency while maintaining flexibility
+ the window, i.e., W inL ≤ Exp < W inR, the LC-Acc is                                         when handling various configurations of WinFloat.
+ selected; otherwise, the FP-Acc is used. Thus, the key task is to                                                            V. E VALUATIONS
+ determine whether Exp falls within the range [W inL, W inR).
+                                                                                              A. Experimental Settings
+ According to the derivation in Eq. 8, this process is reduced
+ to check whether the sum of W inL + Exp    e and W inR + Exp   e                                1) Baselines: We evaluate two state-of-the-art designs, FAST
+ result in carries of 102 , which simplifies the decoder’s hardware                           [4] and Bucket [5], in comparison to WinAcc. For consistency in
+ implementation. The WinFloat decoder requires only basic                                     evaluation, we simplify FAST by excluding variable precision
+ logic elements such as NOT gates, AND gates, multiplexers,                                   and stochastic rounding techniques. Bucket adapts INT-Acc
+ and adders, as illustrated in Fig. 7(a), making it highly efficient                          preceding FP-Acc. To further assess the benefits of WinAcc, we
+ and hardware-friendly.                                                                       also include seven hypothetical designs based on WinAcc: WA-
+                                                                                              3, WA-4, WA-3-NoA, WA-4-NoA, WA-3-NoS, WA-4-NoS, and
+                                                                                              WA-NoS. The labels “-3” and “-4” indicate that the exponent
+                                  W inL ≤ Exp <W inR                                    (5)   bit-width of the LC-Acc is fixed at 3 or 4, respectively. “-NoA”
+             W inL − Exp ≤ 0                  and   W inR − Exp > 0   (6)                     refers to designs that do not utilize the AutoWin algorithm,
+                  e +1≤0
+          W inL + Exp                         and           e + 1 > 0 (7)
+                                                    W inR + Exp                               while “-NoS” refers to those that do not share the FP-Acc.
+                                                                                                 2) Hardware Modeling: We implement all architectures
+                           e ≤ −1
+                   W inL + Exp                and           e ≥0
+                                                    W inR + Exp       (8)                     in Verilog and synthesize them with 12-nm CMOS process
+                                                                                              at 1GHz clock frequency. Static timing analysis tools are
+ C. Low-Cost Accumulator                                                                      employed to assess module-level power consumption, utilizing
+    To accumulate data within different windows (encoded as                                   the synthesized netlist and activity files with real BERT test
+ WinFloat), we design a configurable low-cost accumulator,                                    patterns. Additionally, we develop a cycle-accurate simulator
+ which retains the core structure of standard FP32 accumu-                                    by extending the PyTorch framework. Specifically, we modify
+ lators but utilizes narrow shifters and adders, as shown in                                  the Conv2D and Linear operators in the PyTorch to track
+ Fig. 7(b). To support WinFloat’s varying dynamic ranges, the                                 activation patterns across different computational components.
+ alignment shifter in LC-Acc is designed with two stages,                                     These patterns are then combined with module-level power
+ allowing the second stage to be bypassed when the operands                                   analysis, enabling us to derive precise energy estimates.
+
+
+
+
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+                                                                                                                                                                          IDot                            LC-Acc / INT-Acc                                                 FP-Acc                                  FP-Reg
+                 100
+
+                           75
+ Normalized Activity (%)
+
+
+
+
+                           50
+
+                           25
+
+                           0
+                                FAST
+                                       Bucket
+                                                WA-3-NoA
+                                                           WA-4-NoA
+                                                                      WA-3
+                                                                             WA-4
+
+
+                                                                                             FAST
+                                                                                                    Bucket
+                                                                                                             WA-3-NoA
+                                                                                                                        WA-4-NoA
+                                                                                                                                   WA-3
+                                                                                                                                          WA-4
+
+
+                                                                                                                                                          FAST
+                                                                                                                                                                 Bucket
+                                                                                                                                                                          WA-3-NoA
+                                                                                                                                                                                     WA-4-NoA
+                                                                                                                                                                                                WA-3
+                                                                                                                                                                                                       WA-4
+
+
+                                                                                                                                                                                                                       FAST
+                                                                                                                                                                                                                              Bucket
+                                                                                                                                                                                                                                       WA-3-NoA
+                                                                                                                                                                                                                                                  WA-4-NoA
+                                                                                                                                                                                                                                                             WA-3
+                                                                                                                                                                                                                                                                    WA-4
+
+
+                                                                                                                                                                                                                                                                                    FAST
+                                                                                                                                                                                                                                                                                           Bucket
+                                                                                                                                                                                                                                                                                                    WA-3-NoA
+                                                                                                                                                                                                                                                                                                               WA-4-NoA
+                                                                                                                                                                                                                                                                                                                          WA-3
+                                                                                                                                                                                                                                                                                                                                 WA-4
+
+
+                                                                                                                                                                                                                                                                                                                                                 FAST
+                                                                                                                                                                                                                                                                                                                                                        Bucket
+                                                                                                                                                                                                                                                                                                                                                                 WA-3-NoA
+                                                                                                                                                                                                                                                                                                                                                                            WA-4-NoA
+                                                                                                                                                                                                                                                                                                                                                                                       WA-3
+                                                                                                                                                                                                                                                                                                                                                                                              WA-4
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                              FAST
+                                                                                                                                                                                                                                                                                                                                                                                                                     Bucket
+                                                                                                                                                                                                                                                                                                                                                                                                                              WA-3-NoA
+                                                                                                                                                                                                                                                                                                                                                                                                                                         WA-4-NoA
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    WA-3
+                                                                                                                                                                                                                                                                                                                                                                                                                                                           WA-4
+                                                                                    WinAcc
+
+
+
+
+                                                                                                                                                 WinAcc
+
+
+
+
+                                                                                                                                                                                                              WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                           WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                        WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                     WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                  WinAcc
+                                                ResNet34                                                     ResNet50                                                       VGG16                                              MobileNet-v2                                                                    ViT                                                     BERT                                                     Llama2
+
+
+                                                                                                                            Fig. 8: Activity breakdown on primary compute components.
+
+                                                                                                                                                                          IDot                            LC-Acc / INT-Acc                                                 FP-Acc                                  FP-Reg
+
+                 100
+
+                           75
+ Normalized Energy (%)
+
+
+
+
+                           50
+
+                           25
+
+                           0
+                                FAST
+                                       Bucket
+                                                WA-3-NoA
+                                                           WA-4-NoA
+                                                                      WA-3
+                                                                             WA-4
+
+
+                                                                                             FAST
+                                                                                                    Bucket
+                                                                                                             WA-3-NoA
+                                                                                                                        WA-4-NoA
+                                                                                                                                   WA-3
+                                                                                                                                          WA-4
+
+
+                                                                                                                                                          FAST
+                                                                                                                                                                 Bucket
+                                                                                                                                                                          WA-3-NoA
+                                                                                                                                                                                     WA-4-NoA
+                                                                                                                                                                                                WA-3
+                                                                                                                                                                                                       WA-4
+
+
+                                                                                                                                                                                                                       FAST
+                                                                                                                                                                                                                              Bucket
+                                                                                                                                                                                                                                       WA-3-NoA
+                                                                                                                                                                                                                                                  WA-4-NoA
+                                                                                                                                                                                                                                                             WA-3
+                                                                                                                                                                                                                                                                    WA-4
+
+
+                                                                                                                                                                                                                                                                                    FAST
+                                                                                                                                                                                                                                                                                           Bucket
+                                                                                                                                                                                                                                                                                                    WA-3-NoA
+                                                                                                                                                                                                                                                                                                               WA-4-NoA
+                                                                                                                                                                                                                                                                                                                          WA-3
+                                                                                                                                                                                                                                                                                                                                 WA-4
+
+
+                                                                                                                                                                                                                                                                                                                                                 FAST
+                                                                                                                                                                                                                                                                                                                                                        Bucket
+                                                                                                                                                                                                                                                                                                                                                                 WA-3-NoA
+                                                                                                                                                                                                                                                                                                                                                                            WA-4-NoA
+                                                                                                                                                                                                                                                                                                                                                                                       WA-3
+                                                                                                                                                                                                                                                                                                                                                                                              WA-4
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                              FAST
+                                                                                                                                                                                                                                                                                                                                                                                                                     Bucket
+                                                                                                                                                                                                                                                                                                                                                                                                                              WA-3-NoA
+                                                                                                                                                                                                                                                                                                                                                                                                                                         WA-4-NoA
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    WA-3
+                                                                                                                                                                                                                                                                                                                                                                                                                                                           WA-4
+                                                                                    WinAcc
+
+
+
+
+                                                                                                                                                 WinAcc
+
+
+
+
+                                                                                                                                                                                                              WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                           WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                        WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                     WinAcc
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                  WinAcc
+                                                ResNet34                                                     ResNet50                                                       VGG16                                              MobileNet-v2                                                                    ViT                                                     BERT                                                     Llama2
+
+
+                                                                         Fig. 9: Energy comparison between different accelerators on seven representative DNNs.
+    3) DNN Models and Datasets: Our experiments focus                                                                                                                                                                                             width of 3, designs incorporating AutoWin (WA-3) achieve
+ on seven representative DNNs, including ResNet34 (Res34),                                                                                                                                                                                        a 45% to 82% reduction in FP-Acc activity compared to
+ ResNet50 (Res50) [19], VGG16 [20], MobileNet-v2 (Mob-                                                                                                                                                                                            those without AutoWin (WA-3-NoA) across all tested networks.
+ v2) [21], Vision Transformer (ViT) [22], BERT-Large [23],                                                                                                                                                                                        Notably, the effectiveness of the AutoWin algorithm improves
+ and Llama2-7B [24]. These models encompass a range of                                                                                                                                                                                            as the dynamic accumulation range increases. These results
+ workloads, covering traditional convolutional neural network                                                                                                                                                                                     emphasize WinAcc’s capability to optimize resource utilization
+ classifiers (CNN-based), lightweight models, transformer-based                                                                                                                                                                                   and significantly lower energy overhead.
+ classifiers, and transformer-based text generation architectures.                                                                                                                                                                                   2) Energy Comparisons: Fig. 9 provides a detailed break-
+ The specific applications and datasets associated with each                                                                                                                                                                                      down of energy across different designs. FAST demonstrates
+ model are detailed in Table I.                                                                                                                                                                                                                   the highest energy overhead, primarily due to its frequent
+                                                                                                                                                                                                                                                  reliance on the FP-Acc. While Bucket reduces FP-Acc usage,
+ B. Experimental Results                                                                                                                                                                                                                          the power consumption of INT-Acc remains elevated, leading
+    1) Module-wise Activity Breakdown: We track the activity                                                                                                                                                                                      to overall high energy overhead. WinAcc demonstrates the
+ ratios of key computing components, including IDot, LC-Acc                                                                                                                                                                                       lowest energy across all evaluated designs. Specifically, WinAcc
+ (referred to as INT-Acc in Bucket), FP-Acc, and FP-Reg across                                                                                                                                                                                    achieves energy savings ranging from 37.42% to 68.87%
+ FAST, Bucket, WinAcc, WA-3-NoA, WA-4-NoA, WA-3, and                                                                                                                                                                                              compared to FAST, and from 13.58% to 33.95% compared
+ WA-4. As shown in Fig. 8, WinAcc demonstrates significantly                                                                                                                                                                                      to Bucket. These reductions are primarily attributed to the
+ lower FP-Acc usage compared to FAST across all networks, as                                                                                                                                                                                      synergistic effects of the AutoWin algorithm and the use of
+ it shifts a major portion of FP-Acc activity to the more efficient                                                                                                                                                                               the LC-Acc. AutoWin proves especially effective, with designs
+ LC-Acc. Moreover, WinAcc outperforms Bucket in reducing                                                                                                                                                                                          utilizing it (WA-3, WA-4) showing energy savings of 8.4%
+ FP-Acc activity on networks with larger dynamic accumulation                                                                                                                                                                                     to 36.84% compared to those without it (WA-3-NoA, WA-4-
+ ranges, such as ResNet34 and ResNet50. For other networks,                                                                                                                                                                                       NoA). Additionally, the exponent bit-width of the LC-Acc is a
+ WinAcc maintains minimal FP-Acc usage, largely attributed                                                                                                                                                                                        key factor in determining energy efficiency. Configurations with
+ to the superior performance of the AutoWin algorithm. For                                                                                                                                                                                        a wider exponent bit-width (e.g., WA-4 compared to WA-3)
+ instance, with the LC-Acc configured to an exponent bit-                                                                                                                                                                                         effectively reduce FP-Acc activity, but this reduction comes at
+
+
+
+
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+                               100                                                                                                                                               results for BERT in Fig. 11, with other models exhibiting com-
+      Normalized Performance (%)
+
+
+
+
+                                                                                             6
+                                                                                                                                                                                 parable trends. The results indicate that different layers adopt
+
+
+
+
+                                                                         PE Area (103μm 2)
+                                                                                                                       IDot      FIFO
+                                   95                                                                                  LC-Acc / INT-Acc                                          varying WinFloat configurations, optimizing energy by tailoring
+                                                                                                                       FP-Acc    FP-Reg
+                                   90                                                        4                                                                                   the data format to the specific computational characteristics of
+                                                                                                                                                                                 each tensor.
+                                   85
+                                                                                             2
+                                   80                                                                                                                                                                VI. R ELATED W ORKS
+                                                      Num. of PEs
+                                                     share an FP-Acc
+                                   75                                                                                                                                               This section presents related works on customized data
+                                                          1      4
+                                                                                                                                                                                 formats for DNNs, and BFP-based Accelerators.
+
+
+
+
+                                                                                                                  WA-3-NoS
+
+                                                                                                                             WA-4-NoS
+
+                                                                                                                                        WA-NoS
+                                                                                                  FAST
+
+                                                                                                         Bucket
+
+
+
+
+                                                                                                                                                 WinAcc
+                                                          2      6
+                                   70
+                                                                                                                                                                                    The customized data formats are generally categorized into
+                                        0        2      4           6                                                                                                            FP and BFP formats. For FP, BrainFloat [28] adopts a 1s8e7m
+                                                FIFO Depth
+                                   (a) Normalized performance                                               (b) PE area                                                          format (1 sign bit, 8 exponent bits, and 7 mantissa bits), which
+                                                                                                                                                                                 preserves the dynamic range of FP32 while reducing mantissa
+ Fig. 10: Normalized performance of different FP-Acc share                                                                                                                       bit-width to minimize multiplier overhead. TensorFloat [29]
+ schemes, and PE area with the optimal FP-Acc share scheme.                                                                                                                      extends the mantissa to 10 bits, striking a balance between the
+                                                                                                                                                                                 dynamic range of FP32 and the precision of FP16. ANT [11]
+                                                                                                                                                                                 offers a flexible encoding scheme that exponent and mantissa
+ Exponent Bit-Width and Bias
+
+
+
+
+                        15
+                                                                                                                                                     FP-Acc Activity Ratio (%)
+                                                                                                                                                 10
+                        14                                                                                                                                                       bit-width can be adjusted to accommodate different tensors.
+                                                      exponent bit-width                                                                         8                               In the realm of BFP, FlexPoint [10] introduces a “flexN+M”
+                        10
+                                                      exponent bias
+                                                      FP-Acc activity                                                                            6                               format, where a tensor of M-bit two’s complement integers
+                                   9                                                                                                                                             share an N-bit exponent. MSFP-N, on the other hand, employs a
+                                                                                                                                                 4
+                                                                                                                                                                                 1-bit sign, an 8-bit exponent, and a group of (N-9)-bit mantissa
+                                   4
+                                                                                                                                                 2                               that shares the maximum exponent within the group, making it
+                                   3                                                                                                             0                               highly efficient for hardware implementation.
+                        Layer 1             3    5   7     9   11       13                   15    17      19        21         23                                                  Several BFP-based architectures have also been developed
+                                                                                                                                                                                 to accelerate DNNs. FAST [4] incorporates variable precision
+ Fig. 11: WinFloat configuration with corresponding FP-Acc
+                                                                                                                                                                                 training with stochastic rounding. VSQ [8] applies quantization
+ activity ratio in BERT.
+                                                                                                                                                                                 at the vector level, using 4 or 8 bits for the tensor’s repre-
+                                                                                                                                                                                 sentation. MX [7] introduces a configurable two-stage scaling
+ the cost of higher hardware resource demands. WinAcc achieves                                                                                                                   factor to enhance model accuracy. Bucket [5] leverages an
+ an optimal trade-off between lowering FP-Acc utilization and                                                                                                                    INT-Acc with a narrow dynamic range to process part of the
+ managing hardware overhead, underscoring its superior energy                                                                                                                    data. However, these approaches exhibit limitations in terms of
+ efficiency.                                                                                                                                                                     energy and area efficiencies.
+    3) Evaluations on Area: When the number of PEs sharing
+ an FP-Acc is two, only minimal queue overhead is incurred,                                                                                                                                            VII. C ONCLUSION
+ resulting in negligible performance degradation, as shown in
+ Fig. 10(a). Based on this observation, we adopt a two-PE                                                                                                                           In this work, we propose a window-based architecture,
+ sharing approach in our final design. Fig. 10(b) presents a                                                                                                                     WinAcc, which features a low-cost accumulator with a nar-
+ comparison of the area breakdown across different designs.                                                                                                                      row range alongside an FP32 accumulator. WinAcc is further
+ Compared to FAST, designs that do not share the FP-Acc,                                                                                                                         complemented by a customized data format, allowing the
+ such as WA-3-NoS, WA-4-NoS, and WA-NoS, experience an                                                                                                                           architecture to efficiently handle BFP computations. WinAcc
+ increase in area due to the integration of the LC-Acc. Specifi-                                                                                                                 achieves both high energy efficiency and low area overhead.
+ cally, the LC-Acc in WA-3-NoS has an exponent bit-width of 3,                                                                                                                   The key insight is that the element-wise products in DNNs
+ while WA-4-NoS accommodates a wider exponent range. WA-                                                                                                                         follow a Laplace-like distribution, allowing the majority of data
+ NoS further enhances flexibility by supporting a configurable                                                                                                                   to be encoded using a narrow dynamic range format, while a
+ exponent bit-width and incorporating multiplexers and bypass                                                                                                                    shared FP-Acc processes long-tail data. Our evaluation demon-
+ logic. These additional features contribute to a 15.5% increase                                                                                                                 strates that WinAcc significantly outperforms similar schemes in
+ in area for WA-NoS compared to FAST. However, by enabling                                                                                                                       energy efficiency and area reduction while maintaining superior
+ FP-Acc sharing, area consumption is significantly reduced. As                                                                                                                   model performance.
+ a result, WinAcc achieves a total area reduction of 22.9% and
+                                                                                                                                                                                                      ACKNOWLEDGMENT
+ 9.5% relative to FAST and Bucket, respectively.
+    4) WinFloat Configuration: To evaluate the impact of the                                                                                                                       This work was supported by National Natural Science
+ AutoWin algorithm on reducing FP-Acc activity, we conduct                                                                                                                       Foundation of China (Grant No. U23A20301, 62102433),
+ experiments to measure the layer-wise configuration of Win-                                                                                                                     Natural Science Foundation of Hunan Province, China (No.
+ Float and the corresponding FP-Acc activity across the models                                                                                                                   2023JJ40679), and NUDT Foundation (No. ZK2023-16, 2022-
+ listed in Table I. Due to space limitations, we only present                                                                                                                    KJWPDL-08). Mei Wen is the corresponding author.
+
+
+
+
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+                                R EFERENCES                                              Design Automation Conference, DAC 2024. ACM, 2024, pp. 140:1–
+                                                                                         140:6.
+  [1] T. Choudhary, V. K. Mishra, A. Goswami, and J. Sarangapani, “A                [17] L. Zheng, C. Jia, M. Sun, Z. Wu, C. H. Yu, A. Haj-Ali, Y. Wang, J. Yang,
+      comprehensive survey on model compression and acceleration,” Artif.                D. Zhuo, K. Sen, J. E. Gonzalez, and I. Stoica, “Ansor: Generating
+      Intell. Rev., vol. 53, no. 7, pp. 5113–5155, 2020.                                 high-performance tensor programs for deep learning,” in 14th USENIX
+  [2] L. Deng, G. Li, S. Han, L. Shi, and Y. Xie, “Model compression and                 Symposium on Operating Systems Design and Implementation, OSDI
+      hardware acceleration for neural networks: A comprehensive survey,”                2020. USENIX Association, 2020, pp. 863–879.
+      Proceedings of the IEEE, vol. 108, no. 4, pp. 485–532, 2020.                  [18] J. Lin, J. Tang, H. Tang, S. Yang, W. Chen, W. Wang, G. Xiao, X. Dang,
+  [3] S. Dai, R. Venkatesan, M. Ren, B. Zimmer, W. J. Dally, and B. Khailany,            C. Gan, and S. Han, “AWQ: activation-aware weight quantization for
+      “Vs-quant: Per-vector scaled quantization for accurate low-precision               on-device LLM compression and acceleration,” in Proceedings of the
+      neural network inference,” in Proceedings of the Fourth Conference on              Seventh Annual Conference on Machine Learning and Systems, MLSys
+      Machine Learning and Systems, MLSys 2021. mlsys.org, 2021.                         2024. mlsys.org, 2024.
+                                                                                    [19] K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image
+  [4] S. Qian Zhang, B. McDanel, and H. T. Kung, “Fast: Dnn training
+                                                                                         recognition,” in 2016 IEEE Conference on Computer Vision and Pattern
+      under variable precision block floating point with stochastic rounding,”
+                                                                                         Recognition, CVPR 2016. IEEE Computer Society, 2016, pp. 770–778.
+      in 2022 IEEE International Symposium on High-Performance Computer
+                                                                                    [20] K. Simonyan and A. Zisserman, “Very deep convolutional networks
+      Architecture (HPCA), 2022, pp. 846–860.
+                                                                                         for large-scale image recognition,” in 3rd International Conference on
+  [5] Y. Lo and R. Liu, “Bucket getter: A bucket-based processing engine
+                                                                                         Learning Representations, ICLR 2015, Y. Bengio and Y. LeCun, Eds.,
+      for low-bit block floating point (BFP) dnns,” in Proceedings of the
+                                                                                         2015.
+      56th Annual IEEE/ACM International Symposium on Microarchitecture,
+                                                                                    [21] M. Sandler, A. G. Howard, M. Zhu, A. Zhmoginov, and L. Chen,
+      MICRO 2023. ACM, 2023, pp. 1002–1015.
+                                                                                         “Mobilenetv2: Inverted residuals and linear bottlenecks,” in 2018 IEEE
+  [6] B. D. Rouhani, D. Lo, R. Zhao, M. Liu, J. Fowers, K. Ovtcharov, A. Vino-           Conference on Computer Vision and Pattern Recognition, CVPR 2018.
+      gradsky, S. Massengill, L. Yang, R. Bittner, A. Forin, H. Zhu, T. Na,              Computer Vision Foundation / IEEE Computer Society, 2018, pp. 4510–
+      P. Patel, S. Che, L. C. Koppaka, X. Song, S. Som, K. Das, S. Tiwary,               4520.
+      S. K. Reinhardt, S. Lanka, E. S. Chung, and D. Burger, “Pushing the limits    [22] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Un-
+      of narrow precision inferencing at cloud scale with microsoft floating             terthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit,
+      point,” in Advances in Neural Information Processing Systems 33: Annual            and N. Houlsby, “An image is worth 16x16 words: Transformers for
+      Conference on Neural Information Processing Systems 2020, NeurIPS                  image recognition at scale,” in 9th International Conference on Learning
+      2020, 2020.                                                                        Representations, ICLR 2021. OpenReview.net, 2021.
+  [7] B. D. Rouhani, R. Zhao, V. Elango, R. Shafipour, M. Hall, M. Mes-             [23] J. Devlin, M. Chang, K. Lee, and K. Toutanova, “BERT: pre-training
+      makhosroshahi, A. More, L. Melnick, M. Golub, G. Varatkar, L. Shao,                of deep bidirectional transformers for language understanding,” in Pro-
+      G. Kolhe, D. Melts, J. Klar, R. L’Heureux, M. Perry, D. Burger, E. S.              ceedings of the 2019 Conference of the North American Chapter of the
+      Chung, Z. S. Deng, S. Naghshineh, J. Park, and M. Naumov, “With shared             Association for Computational Linguistics: Human Language Technolo-
+      microexponents, A little shifting goes a long way,” in Proceedings of the          gies, NAACL-HLT 2019, J. Burstein, C. Doran, and T. Solorio, Eds.
+      50th Annual International Symposium on Computer Architecture, ISCA                 Association for Computational Linguistics, 2019, pp. 4171–4186.
+      2023. ACM, 2023, pp. 83:1–83:13.                                              [24] H. Touvron, L. Martin, K. Stone, P. Albert, A. Almahairi, Y. Babaei,
+  [8] B. Keller, R. Venkatesan, S. Dai, S. G. Tell, B. Zimmer, C. Sakr,                  N. Bashlykov, S. Batra, P. Bhargava, S. Bhosale, D. Bikel, L. Blecher,
+      W. J. Dally, C. T. Gray, and B. Khailany, “A 95.6-tops/w deep learning             C. Canton-Ferrer, M. Chen, G. Cucurull, D. Esiobu, J. Fernandes,
+      inference accelerator with per-vector scaled 4-bit quantization in 5 nm,”          J. Fu, W. Fu, B. Fuller, C. Gao, V. Goswami, N. Goyal, A. Hartshorn,
+      IEEE J. Solid State Circuits, vol. 58, no. 4, pp. 1129–1141, 2023.                 S. Hosseini, R. Hou, H. Inan, M. Kardas, V. Kerkez, M. Khabsa,
+  [9] Y. Lo, T. Lee, and R. Liu, “Block and subword-scaling floating-point               I. Kloumann, A. Korenev, P. S. Koura, M. Lachaux, T. Lavril, J. Lee,
+      (BSFP) : An efficient non-uniform quantization for low precision infer-            D. Liskovich, Y. Lu, Y. Mao, X. Martinet, T. Mihaylov, P. Mishra,
+      ence,” in The Eleventh International Conference on Learning Represen-              I. Molybog, Y. Nie, A. Poulton, J. Reizenstein, R. Rungta, K. Saladi,
+      tations, ICLR 2023. OpenReview.net, 2023.                                          A. Schelten, R. Silva, E. M. Smith, R. Subramanian, X. E. Tan, B. Tang,
+ [10] U. Köster, T. Webb, X. Wang, M. Nassar, A. K. Bansal, W. Constable,               R. Taylor, A. Williams, J. X. Kuan, P. Xu, Z. Yan, I. Zarov, Y. Zhang,
+      O. Elibol, S. Hall, L. Hornof, A. Khosrowshahi, C. Kloss, R. J. Pai, and           A. Fan, M. Kambadur, S. Narang, A. Rodriguez, R. Stojnic, S. Edunov,
+      N. Rao, “Flexpoint: An adaptive numerical format for efficient training            and T. Scialom, “Llama 2: Open foundation and fine-tuned chat models,”
+      of deep neural networks,” in Advances in Neural Information Process-               CoRR, vol. abs/2307.09288, 2023.
+      ing Systems 30: Annual Conference on Neural Information Processing            [25] J. Deng, W. Dong, R. Socher, L. Li, K. Li, and L. Fei-Fei, “Imagenet: A
+      Systems 2017, 2017, pp. 1742–1752.                                                 large-scale hierarchical image database,” in 2009 IEEE Computer Society
+ [11] C. Guo, C. Zhang, J. Leng, Z. Liu, F. Yang, Y. Liu, M. Guo, and Y. Zhu,            Conference on Computer Vision and Pattern Recognition (CVPR 2009),
+      “ANT: exploiting adaptive numerical data type for low-bit deep neural              20-25 June 2009, Miami, Florida, USA. IEEE Computer Society, 2009,
+      network quantization,” in 55th IEEE/ACM International Symposium on                 pp. 248–255.
+      Microarchitecture, MICRO 2022. IEEE, 2022, pp. 1414–1433.                     [26] P. Rajpurkar, J. Zhang, K. Lopyrev, and P. Liang, “Squad: 100, 000+
+ [12] “Ieee standard for floating-point arithmetic,” IEEE Std 754-2008, pp. 1–           questions for machine comprehension of text,” in Proceedings of the
+      70, 2008.                                                                          2016 Conference on Empirical Methods in Natural Language Processing,
+ [13] Y. Kim, J. Jang, J. Lee, J. Park, J. Kim, B. Kim, B. Park, S. J.                   EMNLP 2016, Austin, Texas, USA, November 1-4, 2016, J. Su, X. Car-
+      Kwon, D. Lee, and J. Kim, “Winning both the accuracy of float-                     reras, and K. Duh, Eds. The Association for Computational Linguistics,
+      ing point activation and the simplicity of integer arithmetic,” in The             2016, pp. 2383–2392.
+      Eleventh International Conference on Learning Representations, ICLR           [27] D. Hendrycks, C. Burns, S. Basart, A. Zou, M. Mazeika, D. Song, and
+      2023. OpenReview.net, 2023.                                                        J. Steinhardt, “Measuring massive multitask language understanding,” in
+ [14] J. Zhuang, J. Lau, H. Ye, Z. Yang, Y. Du, J. Lo, K. Denolf, S. Neuendorf-          9th International Conference on Learning Representations, ICLR 2021,
+      fer, A. K. Jones, J. Hu, D. Chen, J. Cong, and P. Zhou, “CHARM: com-               Virtual Event, Austria, May 3-7, 2021. OpenReview.net, 2021.
+      posing heterogeneous accelerators for matrix multiply on versal ACAP          [28] D. D. Kalamkar, D. Mudigere, N. Mellempudi, D. Das, K. Banerjee,
+      architecture,” in Proceedings of the 2023 ACM/SIGDA International                  S. Avancha, D. T. Vooturi, N. Jammalamadaka, J. Huang, H. Yuen,
+      Symposium on Field Programmable Gate Arrays, FPGA 2023, P. Ienne                   J. Yang, J. Park, A. Heinecke, E. Georganas, S. Srinivasan, A. Kundu,
+      and Z. Zhang, Eds. ACM, 2023, pp. 153–164.                                         M. Smelyanskiy, B. Kaul, and P. Dubey, “A study of BFLOAT16 for deep
+ [15] F. Liu, N. Yang, H. Li, Z. Wang, Z. Song, S. Pei, and L. Jiang,                    learning training,” CoRR, vol. abs/1905.12322, 2019.
+      “SPARK: scalable and precision-aware acceleration of neural networks          [29] P. Kharya, “Tensorfloat-32 in the a100 gpu accelerates ai training, hpc
+      via efficient encoding,” in IEEE International Symposium on High-                  up to 20x,” NVIDIA Corporation, Tech. Rep, 2020.
+      Performance Computer Architecture, HPCA 2024.           IEEE, 2024, pp.
+      1029–1042.
+ [16] L. Liu, Z. Xu, Y. He, Y. Wang, H. Li, X. Li, and Y. Han, “Drift:
+      Leveraging distribution-based dynamic precision quantization for efficient
+      deep neural network acceleration,” in Proceedings of the 61st ACM/IEEE
+
+
+
+
+Authorized licensed use limited to: National Taiwan Univ of Science and Technology. Downloaded on June 29,2026 at 07:30:26 UTC from IEEE Xplore. Restrictions apply.
+
