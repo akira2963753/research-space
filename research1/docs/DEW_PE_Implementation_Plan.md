@@ -1,8 +1,8 @@
 # DEW_PE RTL Design Plan
 
-> 文件狀態: Draft for design review  
-> 版本: v0.5  
-> 適用目錄: `research1/rtl/03_DEW-PE/01_RTL/`  
+> 文件狀態: Approved design / implementation reference
+> 版本: v1.1
+> 適用目錄: `research1/rtl/03_DEW-PE/01_RTL/`
 > 本版範圍: **RTL Design only**，不包含 Testbench、Assertion、Simulation、Synthesis 或其他 Verification 規劃。
 
 ## 1. 目的
@@ -15,7 +15,7 @@
 4. 24-bit fixed-width accumulation 與 overflow spill。
 5. 單一 local `FP_ACC` 的 request scheduling。
 
-本文件需先經過確認，之後才進入 RTL implementation。
+本文件已完成設計確認，RTL implementation 依此版本進行。
 
 ## 2. 已確認的設計規格
 
@@ -60,9 +60,9 @@ flowchart TD
     IN[Input block + OI1/OI2] --> OD[Outlier_Dispatcher]
     WR[Weight-Stationary registers] --> MAC[16 lane multipliers]
     OD --> MAC
-    MAC[INT_MAC: multipliers + modified Adder Tree] -->|Normal partial P_N| DA[DEW_ACC 24-bit]
-    MAC -->|Outlier 1 product| ARB[FP request selector]
-    MAC -->|Outlier 2 product| ARB
+    MAC[INT_MAC: multipliers + modified Adder Tree] --> PIPE[Single-entry MAC pipeline]
+    PIPE -->|Registered normal partial P_N| DA[DEW_ACC 24-bit]
+    PIPE -->|Registered outlier partial P_O| ARB[FP request selector]
     DA -->|Overflow spill / Final flush| ARB
     ARB --> FP[Local FP_ACC]
     FP --> OUT[FP result + out_valid]
@@ -71,10 +71,11 @@ flowchart TD
 核心資料流為:
 
 1. Weight 先由 `weight_load` 寫入 Weight-Stationary registers。
-2. 每個 accepted activation block 解碼 `oi1/oi2`，產生 normal lane 與兩個 outlier lane 的 routing control。
+2. 每個 accepted activation block 依 `oi1/oi2` 重新排列 weight/activation lane pairs，將 OP1/OP2 固定放到 lanes 15/14。
 3. 16 個 lane 各做一次 mantissa multiplication；不為 outlier 額外複製 multiplier。
-4. `INT_MAC` 內部的 modified Adder Tree 將 normal products 相加，並依 index 直接選出 `OP1/OP2`。
-5. `P_N` 更新 `DEW_ACC`；outlier 與 DEW spill 經簡單 selector 依序送進單一 `FP_ACC`。
+4. `INT_MAC` 內部依架構圖以 DMux、tail Adder、DMux、Mux 形成 `P_N` 與單一 `P_O`。
+5. `P_N/P_O` 與各自 exponent 先進 single-entry MAC pipeline，再分別送往 `DEW_ACC` 與 FP request selector。
+6. `P_O` 與 DEW spill 經簡單 selector 依序送進單一 `FP_ACC`。
 
 ## 4. Top-Level Interface: `DEW_PE`
 
@@ -103,7 +104,7 @@ flowchart TD
 | `o_sign` | output | 1 | FP result sign |
 | `o_exp` | output | 8 | FP result exponent |
 | `o_man` | output | 23 | FP result mantissa |
-| `busy` | output | 1 | Transaction、pending request 或未取走 result 尚未結束 |
+| `busy` | output | 1 | Transaction 或未取走 result 尚未結束 |
 
 ### 4.2 Handshake contract
 
@@ -114,6 +115,8 @@ input_fire = in_valid && in_ready
 ```
 
 `in_valid=1` 但 `in_ready=0` 時，upstream 必須保持所有 input payload 與 `in_last` 不變。`out_valid=1` 但 `out_ready=0` 時，`o_sign/o_exp/o_man` 必須保持不變。
+
+`acc_clear` 與 `in_valid` 必須 mutually exclusive。Clear cycle 不接受 input transaction；`in_ready` 只由 registered datapath/control state 產生，不直接依賴 `acc_clear`，與 Bucket Getter 的 interface contract 一致。
 
 `weight_load` 延續 Baseline semantics: 同 cycle 的 input 使用舊的 registered weight，新 weight 從下一個 cycle 才可見。系統正常使用時應在新 transaction 開始前完成 `weight_load`。
 
@@ -145,7 +148,7 @@ outlier2_valid = !no_outlier && (oi2 != 4'h0)
 2. two-outlier case 的 `oi2` 不可為 lane 0。
 3. 若兩個 outlier 包含 lane 0，lane 0 必須放在 `oi1`。
 
-RTL 不會修正或重新排序 index；`oi2=0` 時單純不配置 Outlier 2。
+RTL 不會修正非法 index encoding；`oi2=0` 時單純不配置 Outlier 2。合法 index 會由 Dispatcher 用於 lane-pair permutation。
 
 ## 6. Module 分解
 
@@ -156,8 +159,8 @@ RTL 不會修正或重新排序 index；`oi2=0` 時單純不配置 Outlier 2。
 1. 保存 Weight-Stationary registers。
 2. 計算 normal / outlier block exponent。
 3. 連接 Dispatcher、INT_MAC、DEW_ACC 與 FP_ACC。
-4. 管理 local FP source selection 與單一 OP2 pending slot。
-5. 產生 `in_ready/out_valid/busy`。
+4. 保存 single-entry MAC pipeline payload 與 backpressure。
+5. 管理 local FP source selection 並產生 `in_ready/out_valid/busy`。
 
 Exponent 計算沿用 Baseline:
 
@@ -168,18 +171,19 @@ outlier_blk_exp = w_exp_reg + oa_exp - BFP_EXP_BIAS
 
 兩條 exponent path 都使用 signed `BFP_BEXP_W`，避免負 exponent 被 unsigned arithmetic 破壞。
 
-### 6.2 `Outlier_Dispatcher.sv`: Simple index routing
+### 6.2 `Outlier_Dispatcher.sv`: Two-stage lane-pair routing
 
-現有 stub 檔名 `Outlier_Dispather.sv` 有拼字錯誤。正式實作預計更名為 `Outlier_Dispatcher.sv`，module name 同步使用 `Outlier_Dispatcher`。
+原有 stub 檔名 `Outlier_Dispather.sv` 有拼字錯誤。實作已更名為 `Outlier_Dispatcher.sv`，module name 同步使用 `Outlier_Dispatcher`。
 
-此 module 不負責 exponent、mantissa、product 或 outlier count 計算，只依 `oi1/oi2` 決定 lane 應分配到 Normal、Outlier 1 或 Outlier 2。
+此 module 不負責 exponent、product 或 outlier count 計算。它將每個 lane 的 `{weight sign/mantissa, activation sign/mantissa}` 視為不可拆分的 payload，依 `oi1/oi2` 做兩級 swap，使 multiplier inputs 先完成固定位置排列。
 
 Interface 保持精簡:
 
 | Signal | Direction | 語意 |
 |---|---|---|
+| Weight/activation packed buses | input | 尚未重新排列的 16 組 lane pairs |
 | `oi1`, `oi2` | input | Encoded outlier indices |
-| `normal_lane_en[15:0]` | output | Normal lane enable mask |
+| Routed weight/activation buses | output | 已完成 OP1/OP2 tail placement 的 lane pairs |
 | `outlier1_valid`, `outlier2_valid` | output | 兩個 routing slot 的有效狀態 |
 
 實際 routing rule 為:
@@ -189,14 +193,17 @@ no_outlier = &(oi1 & oi2)
 outlier1_valid = !no_outlier
 outlier2_valid = !no_outlier && (oi2 != 4'h0)
 
-normal_lane_en = 16'hFFFF
-if (outlier1_valid) normal_lane_en[oi1] = 1'b0
-if (outlier2_valid) normal_lane_en[oi2] = 1'b0
+stage1 = input_lanes
+if (outlier1_valid) swap(stage1[oi1], stage1[15])
+
+stage2 = stage1
+oi2_position = (oi2 == 15) ? oi1 : oi2
+if (outlier2_valid) swap(stage2[oi2_position], stage2[14])
 ```
 
-因此 `{4'hF,4'hF}` 時 `normal_lane_en=16'hFFFF`；`oi2=0` 時只把 `normal_lane_en[oi1]` 清為 0。`oi1/oi2` 本身直接送入 `INT_MAC` 做 indexed product selection，不再建立兩組 16-bit outlier one-hot mask。
+因此 0-outlier case 不交換任何 lane；1-outlier case 只保證 `lane[15]=OP1`；2-outlier case 保證 `lane[15]=OP1`、`lane[14]=OP2`。`oi2_position` 修正第一次 swap 可能移動原始 lane 15 的情況。Normal lane 的順序不影響 dot product，但每一組 lane pair 必須恰好保留一次。
 
-Encoded outlier 的 mantissa 即使為 0，lane ownership 仍依 index 決定；Adder Tree 會將該 lane 從 Normal path 移除，而 Top 再依 product magnitude 是否為 0 決定要不要產生 FP request。
+Encoded outlier 的 mantissa 即使為 0，lane ownership 仍依 index 決定。Weight 與 activation 必須一起 swap，避免破壞 dot-product pairing；Top 再依 `P_O` magnitude 是否為 0 決定是否產生 FP request。
 
 ### 6.3 `INT_MAC.sv`: Multiplier array 與 modified Adder Tree
 
@@ -208,25 +215,46 @@ sign[i]  = w_sign[i] XOR a_sign[i]
 sprod[i] = sign[i] ? -prod[i] : prod[i]
 ```
 
-Adder Tree 邏輯直接放在 `INT_MAC.sv`，不另外建立 `DEW_ADDER_TREE` module。內部先依 Dispatcher 的 `normal_lane_en` 將 outlier products 從 normal path 移除，再以 G16 固定的 4-stage balanced tree 相加:
+Adder Tree 邏輯直接放在 `INT_MAC.sv`，不另外建立 `DEW_ADDER_TREE` module。Dispatcher 已保證 `sprod[15]=OP1`，且 two-outlier case 為 `sprod[14]=OP2`。Tail path 完全依架構圖實作為兩個 DMux、一個 Adder 與一個 Mux:
 
 ```text
-normal_prod[i] = normal_lane_en[i] ? sprod[i] : 0
+one_outlier  = outlier1_valid && !outlier2_valid
+two_outliers = outlier2_valid
 
-stage1[0..7] = pairwise add normal_prod[0..15]
+DMux 1:
+    op1_to_tail    = one_outlier ? 0   : sprod[15]
+    op1_to_outlier = one_outlier ? sprod[15] : 0
+
+Tail Adder:
+    tail_sum = sprod[14] + op1_to_tail
+
+DMux 2:
+    tail_to_normal  = two_outliers ? 0        : tail_sum
+    tail_to_outlier = two_outliers ? tail_sum : 0
+
+Final Mux:
+    P_O = one_outlier ? op1_to_outlier : tail_to_outlier
+```
+
+`tail_to_normal` 作為 balanced Adder Tree 的第八個 stage-1 input:
+
+```text
+stage1[0..6] = pairwise add sprod[0..13]
+stage1[7] = tail_to_normal
 stage2[0..3] = pairwise add stage1[0..7]
 stage3[0..1] = pairwise add stage2[0..3]
-normal_sum    = stage3[0] + stage3[1]
+P_N = stage3[0] + stage3[1]
 ```
 
-`OP1/OP2` 不需要另一棵 Adder Tree。它們直接在同一段 `INT_MAC` stage logic 中，按照架構圖使用 `oi1/oi2` 的各級 index bit 控制 mux / bypass，最後選出對應 lane product。功能上等價於:
+這個結構對應三種 case:
 
 ```text
-op1 = outlier1_valid ? sprod[oi1] : 0
-op2 = outlier2_valid ? sprod[oi2] : 0
+0 outlier : P_N = sum(sprod[0..13]) + sprod[14] + sprod[15], P_O = 0
+1 outlier : P_N = sum(sprod[0..13]) + sprod[14],             P_O = sprod[15]
+2 outliers: P_N = sum(sprod[0..13]),                         P_O = sprod[14] + sprod[15]
 ```
 
-RTL 會明確寫出架構圖中的 stage mux connection，不另外抽象成 recursive node、payload structure 或 child module。Normal path 只保留一棵 balanced Adder Tree。Stage width 依每層增加 1 bit:
+`INT_MAC` 不接收 `oi1/oi2`，也不建立 16:1 product Mux-Tree 或 16-lane normal mask。Stage width 依每層增加 1 bit:
 
 ```text
 lane product = 7 bits signed
@@ -236,21 +264,31 @@ stage 3      = 10 bits signed
 final sum    = 11 bits signed
 ```
 
-`INT_MAC` 最後輸出三條 logically independent path:
+`INT_MAC` 最後輸出兩條 logically independent path:
 
 | Output | Width | 語意 |
 |---|---:|---|
 | `normal_sign` | 1 | Normal partial sign |
 | `normal_mag` | `BFP_MAG_W` | 所有 normal lanes 的 signed sum magnitude |
-| `op1_sign/op1_mag` | 1 / `BFP_PROD_W` | `oi1` 指定 lane 的 product |
-| `op2_sign/op2_mag` | 1 / `BFP_PROD_W` | `oi2` 指定 lane 的 product |
-| `op1_valid/op2_valid` | 1 / 1 | 對應 outlier slot 是否 occupied |
+| `outlier_sign/outlier_mag` | 1 / `BFP_SPROD_W` | Zero-to-two outlier lanes 的 signed partial sum `P_O` |
 
 `INT_MAC` 不做 exponent comparison，也不保存 accumulation state。
 
-所有 add operation 都在 signed domain 進行，最後才將三個 outputs 轉為 sign-magnitude。`OP1/OP2` 的 magnitude 為原始 6-bit product。
+所有 add operation 都在 signed domain 進行，最後才將 `P_N/P_O` 轉為 sign-magnitude。`P_O` 最多為兩個 signed products 的和，因此 magnitude 使用 `BFP_SPROD_W=7` bits。
 
-### 6.4 `DEW_ACC.sv`: 24-bit Dynamic Exponent-Window Accumulator
+### 6.4 Single-entry MAC Pipeline
+
+`INT_MAC` 後放置一組 elastic pipeline registers，保存 `valid/last`、`P_N`、`P_O`，以及 normal/outlier exponent。此 stage 與 Bucket Getter 的 `mac_*_reg` 使用相同目的，將 `Outlier_Dispatcher + INT_MAC` 與後端 `DEW_ACC/FP_ACC` timing cone 切開。`P_O=0` 直接代表不產生 outlier request，因此不另存 outlier-valid bit。
+
+```text
+mac_fire  = mac_valid_reg && dew_in_ready
+mac_ready = !mac_valid_reg || dew_in_ready
+in_ready  = mac_ready && !closing && !out_valid
+```
+
+Pipeline 為空時，即使 DEW spill 正在送入 `FP_ACC`，仍可先接收一筆新 input；若 pipeline 已有資料且 `DEW_ACC` backpressure，則完整 payload 保持不變。這是 datapath pipeline，不是 FIFO 或 FP request pending slot。
+
+### 6.5 `DEW_ACC.sv`: 24-bit Dynamic Exponent-Window Accumulator
 
 `DEW_ACC` 保存以下 state:
 
@@ -348,7 +386,7 @@ overflow  = candidate 超出 24-bit signed range
 
 最終結果只從 local `FP_ACC` 輸出，因此不需要額外的 FP adder 去合併 DEW output 與 exception output。
 
-### 6.5 `FP_ACC.sv` 與 `BFP_PKG.sv`: Reuse boundary
+### 6.6 `FP_ACC.sv` 與 `BFP_PKG.sv`: Reuse boundary
 
 下列 Baseline behavior 原封不動保留:
 
@@ -358,39 +396,38 @@ overflow  = candidate 超出 24-bit signed range
 4. FP output format `1S / 8E / 23M`。
 5. 既有的 truncation、underflow-to-zero 與 overflow saturation policy。
 
-唯一需要 generalize 的部分是 `NORM` input width。Baseline 只接受 `BFP_MAG_W=10` 的 dot-product magnitude，但 DEW overflow candidate 可達 **25 bits**。因此 DEW 版本會使用 parameterized `FP_REQ_MAG_W = DEW_ACC_W + 1`:
+`FP_ACC` 的 input interface 與 Baseline、Bucket Getter 對齊，固定接受 `BFP_MAG_W=10` 的 magnitude。Outlier product 直接 zero-extend；`DEW_ACC` 的 24/25-bit final 或 overflow magnitude 則在寫入 registered spill 前保留最高 10 個有效位元:
 
 ```text
-Outlier product : 6-bit magnitude  -> zero-extend to FP_REQ_MAG_W
-DEW final value : 24-bit magnitude -> zero-extend to FP_REQ_MAG_W
-Overflow value  : 25-bit magnitude -> direct use
+shift     = max(msb_position - (BFP_MAG_W - 1), 0)
+spill_mag = raw_mag >> shift
+spill_exp = raw_exp + shift
 ```
 
-`NORM` 的 leading-one detection 與 exponent correction 改以 `FP_REQ_MAG_W` 計算；`FP_ADD` 與 accumulator register 不重寫。這是為了讓同一個 FP_ACC 正確接收不同 fixed-point width，而不是更改 FP accumulation algorithm。
+右移造成的低位元捨棄採 truncation toward zero；若 `raw_mag` 本來就能以 10 bits 表示，則 magnitude 與 exponent 均保持不變。`FP_ACC.NORM`、`FP_ADD` 與 accumulator register 直接維持 Baseline 的固定寬度 implementation。
 
 ## 7. Local FP Request Selection
 
 ### 7.1 Request sources
 
-單一 `FP_ACC` 共有四種 source:
+單一 `FP_ACC` 共有三種 source:
 
 | Source | 產生時機 | Exponent |
 |---|---|---|
-| `OP1` | accepted block 有第一個 nonzero outlier | `outlier_blk_exp` |
-| `OP2` | accepted block 有第二個 nonzero outlier | `outlier_blk_exp` |
+| `P_O` | accepted block 的 outlier partial sum 非零 | `outlier_blk_exp` |
 | `DEW_OVERFLOW` | 24-bit `ALIGN_ADD` overflow | `common_lsb_exp` |
 | `DEW_FINAL` | `in_last` 後 normal accumulator 非零 | `acc_lsb_exp` |
 
-Exception path 不做 exponent comparison。所有 occupied 且 product magnitude 非零的 outlier 都直接送往 FP_ACC。
+Exception path 不做 exponent comparison。每個 accepted block 的 zero-to-two outlier products 先在 INT_MAC 形成單一 `P_O`，與 exponent 一起進 MAC pipeline；pipeline 被消費且 `P_O` 非零時送往 FP_ACC。
 
 ### 7.2 不使用 FIFO 的實作方式
 
-本設計不建立 queue、pointer、counter 或 request array，只保留兩個必要的 one-entry state:
+本設計不建立 queue、pointer、counter、FP pending slot 或 request array，只保留兩個必要的 one-entry state:
 
+- Top-level `mac_*_reg` 保存一筆尚未被 `DEW_ACC` 消費的完整 MAC payload。
 - `DEW_ACC.spill_valid_reg` 與一組 `spill_sign/mag/exp`，overflow 和 final flush 共用。
-- `op2_pending_reg` 與一組 OP2 payload，因為 accepted cycle 的 FP port 先給 OP1。
 
-Top 另外只需要一個 `closing_reg` 記住已接受 `in_last`。只要 `spill_valid`、`op2_pending` 或 `closing` 尚未結束，`in_ready` 就拉低，因此 payload 不會被後續 block 覆蓋。
+Top 另外使用 `closing_reg` 記住已接受 `in_last`。MAC pipeline 透過 `mac_ready` 接受 backpressure；DEW spill 存在時不會消費 pipeline payload，因此 outlier 與 spill 不會同 cycle 送入 FP_ACC。
 
 ### 7.3 Arbitration priority 與固定順序
 
@@ -398,18 +435,15 @@ FP_ACC 每 cycle 最多接受一筆 request。順序固定為:
 
 ```text
 1. DEW spill     // overflow 或 final flush 共用
-2. OP2 pending
-3. Current OP1  // 只會在 input_fire 且沒有舊 pending 時出現
+2. Pipeline P_O  // 只會在 mac_fire 時出現
 ```
 
-`OP1` 在 input block 被 accepted 的同一個 active edge 送入 FP_ACC。`OP2` 因為只有一個 FP_ACC port，所以保存到下一個可用 cycle。
-
-若同一個 block 同時產生 `OP1`、`OP2` 與 DEW spill，實際 FP order 固定為:
+若同一個 block 同時包含 `P_O` 並造成 DEW spill，實際 FP order 固定為:
 
 ```text
-accepted cycle : OP1
-next cycle     : DEW spill
-following      : OP2
+accepted cycle       : capture P_N/P_O into MAC pipeline
+MAC processing cycle : P_O
+following cycle      : DEW spill
 ```
 
 Overflow 與 final flush 不建立兩套 arbitration；兩者都走同一個 registered spill port。如此 overflow 一定能在下一個 cycle 送入 FP_ACC，control 也只需固定 priority mux。
@@ -418,31 +452,32 @@ Overflow 與 final flush 不建立兩套 arbitration；兩者都走同一個 reg
 
 | Accepted block event | FP_ACC / stall behavior |
 |---|---|
-| 0 outlier，no overflow | 當 cycle 無 FP request；下一 cycle 可再收 input |
-| 1 outlier，no overflow | 當 cycle送 OP1；下一 cycle 可再收 input |
-| 2 outliers，no overflow | 當 cycle送 OP1；下一 cycle送 OP2 並 stall |
-| Any overflow | overflow 後下一 cycle送 widened candidate 並 stall |
-| `in_last` | 排空 OP2、overflow/final request 後才產生 `out_valid` |
+| 0 outlier，no overflow | Accepted cycle 寫入 pipeline；下一 cycle消費且無 FP request |
+| 1 outlier，no overflow | Accepted cycle 寫入 pipeline；下一 cycle送 P_O |
+| 2 outliers，no overflow | Accepted cycle 寫入 pipeline；下一 cycle送合併後的 P_O |
+| Any overflow | MAC processing 後下一 cycle送 widened candidate；pipeline consumption stall |
+| `in_last` | 排空 overflow/final request 後才產生 `out_valid` |
 
 Zero-magnitude request 不會觸發 `FP_ACC.in_valid`，但 corresponding control slot 仍會被視為已完成。
 
 ## 8. Control 與 Output Lifecycle
 
-Top-level 不建立額外 processing FSM，只使用 `op2_pending_reg`、`closing_reg` 與 `out_valid_reg`；DEW request state 由 `DEW_ACC.spill_valid_reg` 自己保存。
+Top-level 不建立額外 processing FSM，只使用 single-entry MAC pipeline、`transaction_active_reg`、`closing_reg` 與 `out_valid_reg`；DEW request state 由 `DEW_ACC.spill_valid_reg` 自己保存。`transaction_active_reg` 只負責讓 `busy` 在零值 block 之間仍維持正確的 transaction 語意，不參與 datapath scheduling。
 
 `in_ready` 的基本條件:
 
 ```text
-in_ready = !dew_spill_valid
-        && !op2_pending
-        && !closing
-        && !out_valid
+mac_ready = !mac_valid_reg || dew_in_ready
+in_ready  = mac_ready
+         && !closing
+         && !out_valid
 ```
 
 `busy` 在以下任一狀態為 1:
 
 - DEW accumulator 已有有效 subtotal。
-- `dew_spill_valid` 或 `op2_pending`。
+- MAC pipeline 尚有有效 payload。
+- `dew_spill_valid`。
 - 已接受 `in_last` 且 transaction 正在 closing。
 - `out_valid` 尚未被 `out_ready` 接收。
 
@@ -456,12 +491,12 @@ Sequential control priority 統一為:
 if (!rst_n)
     reset all state, including weight registers;
 else if (acc_clear)
-    clear DEW_ACC, FP_ACC, pending slots, closing and out_valid;
+    clear DEW_ACC, FP_ACC, closing and out_valid;
 else
     perform normal handshakes and updates;
 ```
 
-`acc_clear` 不清除 Weight-Stationary registers，與 Baseline PE 一致。`acc_clear` 發生時，尚未送出的 outlier、overflow 與 final request 全部取消。
+`acc_clear` 不清除 Weight-Stationary registers，與 Baseline PE 一致。`acc_clear` 發生時，MAC pipeline 與尚未送出的 outlier、overflow、final request 全部取消。
 
 ## 10. Parameterization Plan
 
@@ -471,7 +506,7 @@ else
 |---|---:|---|
 | `T_SKIP` | 9 | `DEW_PE`, `DEW_ACC` |
 | `T_REPLACE` | 3 | `DEW_PE`, `DEW_ACC` |
-| `DEW_ACC_W` | 24 | `DEW_PE`, `DEW_ACC`, FP request normalization |
+| `DEW_ACC_W` | 24 | `DEW_PE`, `DEW_ACC`, spill formatting |
 
 `T_SKIP/T_REPLACE/DEW_ACC_W` 使用 module parameters，由 `DEW_PE` 往下傳遞，不使用散落的 magic numbers。
 
@@ -485,7 +520,7 @@ Derived widths 集中定義:
 BFP_PROD_W     = 2 * BFP_MAN_W
 BFP_SPROD_W    = BFP_PROD_W + 1
 BFP_SUM_W      = BFP_SPROD_W + clog2(BFP_GSIZE)
-FP_REQ_MAG_W   = DEW_ACC_W + 1
+BFP_MAG_W      = BFP_SUM_W - 1
 ```
 
 ## 11. RTL File Plan
@@ -494,15 +529,15 @@ FP_REQ_MAG_W   = DEW_ACC_W + 1
 
 | File | 規劃內容 |
 |---|---|
-| `DEW_PE.sv` | Top integration、Weight-Stationary registers、FP source selection、handshake |
-| `Outlier_Dispatcher.sv` | OI valid decode 與 normal lane mask |
-| `INT_MAC.sv` | 16 lane multipliers、4-stage Adder Tree、OP1/OP2 indexed selection |
-| `DEW_ACC.sv` | 24-bit window decision、alignment、overflow、final flush |
-| `FP_ACC.sv` | Baseline FP accumulator，僅 generalize fixed-point input width |
-| `BFP_PKG.sv` | Generic LOD / fixed-to-FP normalization helper，保留 `FP_ADD` |
+| `DEW_PE.sv` | Top integration、Weight-Stationary registers、single-entry MAC pipeline、FP source selection、handshake |
+| `Outlier_Dispatcher.sv` | OI valid decode 與 two-stage lane-pair swap |
+| `INT_MAC.sv` | 16 lane multipliers、DMux/Adder/DMux/Mux tail routing、4-stage Adder Tree |
+| `DEW_ACC.sv` | 24-bit window decision、alignment、overflow、final flush、10-bit spill formatting |
+| `FP_ACC.sv` | Baseline-compatible 10-bit FP accumulator |
+| `BFP_PKG.sv` | Baseline-compatible LOD / fixed-to-FP normalization helper，保留 `FP_ADD` |
 | `include.vh` | 集中 format 與 derived width definitions |
 
-現有空白 `INT_ACC.sv` 不放入 active hierarchy；fixed-width state 全部由 `DEW_ACC` 擁有。
+原有空白 `INT_ACC.sv` 已移除；fixed-width state 全部由 `DEW_ACC` 擁有。
 
 ### 11.2 Module hierarchy
 
@@ -517,9 +552,11 @@ DEW_PE
 
 ### 11.3 Maintainability constraints
 
-- 不建立獨立 `DEW_ADDER_TREE` module；所有 multiplier、mux 與 adder stages 都留在 `INT_MAC.sv`。
+- 不建立獨立 `DEW_ADDER_TREE` module；架構圖中的 DMux/Adder/DMux/Mux 與 adder stages 留在 `INT_MAC.sv`。
+- 不在 `INT_MAC` 內重複建立 OP1/OP2 index Mux-Tree；index routing 只由 Dispatcher 執行一次，INT_MAC 只處理固定 tail lanes。
 - 不建立獨立 Arbiter module；FP source selection 留在 `DEW_PE.sv` 的一個 `always_comb`。
 - 不建立 FIFO、request array、pointer、counter 或通用 scheduler framework。
+- MAC pipeline 只保存一筆完整 datapath payload，不拆成 OP1/OP2 pending requests。
 - `DEW_ACC` 只保留一份 accumulator state 與一個共用 spill register。
 - G16 Adder Tree 使用清楚的固定 4-stage signal naming，不為尚未要求的 G32 建立 recursive abstraction。
 
@@ -534,22 +571,23 @@ DEW_PE
 
 ### Phase 2: Build integer datapath
 
-- 實作 `Outlier_Dispatcher`。
+- 實作 `Outlier_Dispatcher` two-stage lane-pair swap。
 - 在 `INT_MAC.sv` 內實作 16-lane multiplier array。
 - 在同一個 `INT_MAC.sv` 內實作 4-stage balanced Adder Tree。
-- 直接以 `oi1/oi2` 選出 OP1、OP2 products。
+- 依架構圖從固定 lanes 15/14 形成單一 outlier partial sum `P_O`。
 
 ### Phase 3: Build accumulation datapath
 
 - 實作 `DEW_ACC` state、LOD、threshold decision 與 alignment。
 - 實作 25-bit candidate 與 pre-commit overflow detection。
 - 實作 overflow / final 共用的 registered spill port。
-- Generalize FP input normalization，保留 Baseline `FP_ADD` core。
+- 保留 Baseline-compatible 10-bit FP input normalization 與 `FP_ADD` core。
 
 ### Phase 4: Integrate top-level control
 
-- 實作 direct OP1、pending OP2 與 DEW spill priority mux。
-- 只使用 `op2_pending/closing/out_valid` control flags。
+- 在 `INT_MAC` 後加入 single-entry `mac_*_reg`，同時保存 `P_N/P_O`、exponent 與 `in_last`。
+- 實作 registered `P_O` 與 DEW spill priority mux。
+- 只使用 `transaction_active/closing/out_valid` control flags。
 - 完成 `in_ready/out_valid/out_ready/busy` semantics。
 - 移除 active hierarchy 中未使用的 stub connection 與 duplicate state。
 
@@ -558,7 +596,7 @@ DEW_PE
 以下是本 plan 已採用、但希望在開始寫 RTL 前由 reviewer 明確核准的三點:
 
 1. **24-bit DEW_ACC width 包含 sign bit**。
-2. Overflow 時送往 FP_ACC 的是 **25-bit full candidate sum**，送出後 DEW state 清空。
-3. 單一 FP_ACC 的 request order 採 `OP1 -> DEW spill(next cycle) -> OP2`；overflow 與 final flush 共用同一個 spill port。
+2. Overflow 先保存完整 **25-bit candidate sum** 的 sign/magnitude，再截斷成最高 10 個有效位元並修正 exponent 後送往 FP_ACC；送出後 DEW state 清空。
+3. 每個 block 的 zero-to-two outlier products 先形成單一 `P_O` 並進 MAC pipeline；request order採 `registered P_O -> DEW spill(following cycle)`，overflow 與 final flush 共用同一個 spill port。
 
 若以上三點維持不變，後續 RTL implementation 可以直接依本文件進行，不需要再補一層 FIFO 或 shared-FP-ACC protocol。

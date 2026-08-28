@@ -106,6 +106,17 @@ module BG_ACC(
     logic signed [`BFP_BEXP_W-1:0] input_base_work;
     logic [`BG_BUCKET_SHIFT_W-1:0] input_shift_work;
     logic signed [`BG_WORK_W-1:0] input_aligned_work;
+    logic quant_found_work;
+    logic [`BFP_MAG_W-1:0] quant_mag_candidate_work;
+    logic signed [`BFP_BEXP_W-1:0] quant_exp_candidate_work;
+    logic [`BG_BUCKET_SHIFT_W-1:0] quant_offset_candidate_work;
+    logic [`BFP_MAG_W+`BG_EXP_PER_BUCKET-1:0]
+        quant_aligned_candidate_work;
+    logic [`BFP_MAG_W-1:0] input_quant_mag_work;
+    logic signed [`BFP_BEXP_W-1:0] input_quant_exp_work;
+    logic [`BG_BUCKET_SHIFT_W-1:0] input_quant_offset_work;
+    logic [`BG_LOGICAL_BUCKET_WIDTH-1:0] input_quant_aligned_mag_work;
+    integer input_quant_shift_work;
     integer input_top_offset_work;
     logic signed [`BFP_BEXP_W-1:0] input_top_base_work;
 
@@ -210,16 +221,49 @@ module BG_ACC(
         profile_oob_drop = 1'b0;
         profile_carry_depth = '0;
 
-        input_sum_work = $signed({1'b0, dp_mag});
-        if(dp_sign)
-            input_sum_work = -input_sum_work;
-        input_base_work = EXP_BASE(blk_exp);
-        input_shift_work = blk_exp - input_base_work;
+        quant_found_work = dp_mag == 0;
+        quant_mag_candidate_work = '0;
+        quant_exp_candidate_work = blk_exp;
+        quant_offset_candidate_work = '0;
+        quant_aligned_candidate_work = '0;
+        input_quant_mag_work = '0;
+        input_quant_exp_work = blk_exp;
+        input_quant_offset_work = '0;
+        input_quant_aligned_mag_work = '0;
+        input_quant_shift_work = 0;
+
+        for(int i = 0; i < `BFP_MAG_W; i++) begin
+            quant_mag_candidate_work = dp_mag >> i;
+            quant_exp_candidate_work = blk_exp + i;
+            quant_offset_candidate_work = quant_exp_candidate_work[
+                `BG_BUCKET_SHIFT_W-1:0
+            ];
+            quant_aligned_candidate_work = quant_mag_candidate_work
+                                           << quant_offset_candidate_work;
+            if(!quant_found_work
+               && quant_mag_candidate_work != 0
+               && quant_aligned_candidate_work
+               <= {`BG_LOGICAL_BUCKET_WIDTH{1'b1}}) begin
+                quant_found_work = 1'b1;
+                input_quant_mag_work = quant_mag_candidate_work;
+                input_quant_exp_work = quant_exp_candidate_work;
+                input_quant_offset_work = quant_offset_candidate_work;
+                input_quant_aligned_mag_work =
+                    quant_aligned_candidate_work[
+                        `BG_LOGICAL_BUCKET_WIDTH-1:0
+                    ];
+                input_quant_shift_work = i;
+            end
+        end
+
+        input_sum_work = $signed({1'b0, input_quant_aligned_mag_work});
+        if(dp_sign) input_sum_work = -input_sum_work;
+        input_base_work = EXP_BASE(input_quant_exp_work);
+        input_shift_work = input_quant_offset_work;
         input_aligned_work = {
             {(`BG_WORK_W-`BFP_SUM_W){input_sum_work[`BFP_SUM_W-1]}},
             input_sum_work
         };
-        input_aligned_work = input_aligned_work <<< input_shift_work;
         input_top_offset_work = WORK_TOP_OFFSET(input_aligned_work);
         input_top_base_work = input_base_work
                             + input_top_offset_work*`BG_EXP_PER_BUCKET;
@@ -438,10 +482,16 @@ module BG_ACC(
                                     if(i < selected_offset_work) begin
                                         chain_full_work[i] =
                                             active_valid_work[chain_ptr_work[i]]
-                                            && &bucket_reg[chain_ptr_work[i]];
+                                            && bucket_reg[chain_ptr_work[i]]
+                                            == $signed({1'b0, {
+                                                (`BG_BUCKET_WIDTH-1){1'b1}
+                                            }});
                                         chain_empty_work[i] =
-                                            !active_valid_work[chain_ptr_work[i]]
-                                            || ~|bucket_reg[chain_ptr_work[i]];
+                                            active_valid_work[chain_ptr_work[i]]
+                                            && bucket_reg[chain_ptr_work[i]]
+                                            == $signed({1'b1, {
+                                                (`BG_BUCKET_WIDTH-1){1'b0}
+                                            }});
                                         chain_carry_in_work[i] = 1'b1;
                                         for(int j = 0; j < `BG_BUCKET_COUNT-1; j++) begin
                                             if(j < i) begin
@@ -474,21 +524,31 @@ module BG_ACC(
                                         if(chain_carry_in_work[i])
                                             carry_depth_work = i+1;
                                         if(chain_zero_work[i]) begin
-                                            bucket_next[chain_ptr_work[i]] = '0;
-                                            bucket_valid_next[chain_ptr_work[i]] = 1'b0;
+                                            bucket_next[chain_ptr_work[i]] = {
+                                                1'b1,
+                                                {(`BG_BUCKET_WIDTH-1){1'b0}}
+                                            };
+                                            bucket_valid_next[chain_ptr_work[i]] = 1'b1;
                                         end
                                         else if(chain_fill_work[i]) begin
-                                            bucket_next[chain_ptr_work[i]] = '1;
+                                            bucket_next[chain_ptr_work[i]] = {
+                                                1'b0,
+                                                {(`BG_BUCKET_WIDTH-1){1'b1}}
+                                            };
                                             bucket_valid_next[chain_ptr_work[i]] = 1'b1;
                                         end
                                         else if(chain_inc_work[i]) begin
                                             bucket_next[chain_ptr_work[i]] =
-                                                bucket_reg[chain_ptr_work[i]] + 1'b1;
+                                                (active_valid_work[chain_ptr_work[i]])?
+                                                    bucket_reg[chain_ptr_work[i]] + 1'b1 :
+                                                    {{(`BG_BUCKET_WIDTH-1){1'b0}}, 1'b1};
                                             bucket_valid_next[chain_ptr_work[i]] = 1'b1;
                                         end
                                         else if(chain_dec_work[i]) begin
                                             bucket_next[chain_ptr_work[i]] =
-                                                bucket_reg[chain_ptr_work[i]] - 1'b1;
+                                                (active_valid_work[chain_ptr_work[i]])?
+                                                    bucket_reg[chain_ptr_work[i]] - 1'b1 :
+                                                    {`BG_BUCKET_WIDTH{1'b1}};
                                             bucket_valid_next[chain_ptr_work[i]] = 1'b1;
                                         end
 

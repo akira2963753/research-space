@@ -1,0 +1,37 @@
+ 
+****************************************
+Report : power
+        -hier
+        -analysis_effort low
+Design : BFP_PE
+Version: O-2018.06
+Date   : Fri Aug 28 05:10:40 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 0.9  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+--------------------------------------------------------------------------------
+                                       Switch   Int      Leak     Total
+Hierarchy                              Power    Power    Power    Power    %
+--------------------------------------------------------------------------------
+BFP_PE                                    3.899    4.934 2.08e+08    9.042 100.0
+  u_fp_acc (FP_ACC)                       2.379    2.470 5.17e+07    4.901  54.2
+  u_int_mac (INT_MAC)                     1.498    2.330 1.51e+08    3.979  44.0
+1

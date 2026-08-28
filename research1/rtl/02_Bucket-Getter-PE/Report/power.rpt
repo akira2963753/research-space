@@ -5,7 +5,7 @@ Report : power
         -analysis_effort low
 Design : BG_PE
 Version: O-2018.06
-Date   : Wed Aug 26 22:56:57 2026
+Date   : Thu Aug 27 12:02:34 2026
 ****************************************
 
 
@@ -27,12 +27,12 @@ Power-specific unit information :
     Leakage Power Units = 1pW
 
 
-  Cell Internal Power  =   1.9766 mW   (60%)
-  Net Switching Power  =   1.3217 mW   (40%)
+  Cell Internal Power  = 707.6752 uW   (80%)
+  Net Switching Power  = 176.5186 uW   (20%)
                          ---------
-Total Dynamic Power    =   3.2982 mW  (100%)
+Total Dynamic Power    = 884.1938 uW  (100%)
 
-Cell Leakage Power     = 151.1393 uW
+Cell Leakage Power     =  56.3145 uW
 
 
                  Internal         Switching           Leakage            Total
@@ -42,9 +42,9 @@ io_pad             0.0000            0.0000            0.0000            0.0000 
 memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
 black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
 clock_network      0.0000            0.0000            0.0000            0.0000  (   0.00%)
-register           0.2865        1.3665e-02        7.0261e+06            0.3072  (   8.90%)
+register           0.3044        1.1191e-02        7.9532e+06            0.3235  (  34.40%)
 sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
-combinational      1.6901            1.3080        1.4411e+08            3.1422  (  91.10%)
+combinational      0.4033            0.1653        4.8361e+07            0.6170  (  65.60%)
 --------------------------------------------------------------------------------------------------
-Total              1.9766 mW         1.3217 mW     1.5114e+08 pW         3.4494 mW
+Total              0.7077 mW         0.1765 mW     5.6315e+07 pW         0.9405 mW
 1

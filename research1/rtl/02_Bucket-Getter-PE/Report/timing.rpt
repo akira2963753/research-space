@@ -6,15 +6,15 @@ Report : timing
         -max_paths 1
 Design : BG_PE
 Version: O-2018.06
-Date   : Wed Aug 26 22:56:57 2026
+Date   : Thu Aug 27 12:02:34 2026
 ****************************************
 
 Operating Conditions: slow   Library: slow
 Wire Load Model Mode: top
 
-  Startpoint: a_man_b[23]
-              (input port clocked by clk)
-  Endpoint: u_bg_acc/spill_mag_reg_reg_8_
+  Startpoint: u_bg_acc/spill_mag_reg_reg_2_
+              (rising edge-triggered flip-flop clocked by clk)
+  Endpoint: u_fp_acc/acc_reg_reg_30_
             (rising edge-triggered flip-flop clocked by clk)
   Path Group: clk
   Path Type: max
@@ -23,103 +23,97 @@ Wire Load Model Mode: top
   --------------------------------------------------------------------------
   clock clk (rise edge)                                   0.00       0.00
   clock network delay (ideal)                             0.50       0.50
-  input external delay                                    5.00       5.50 r
-  a_man_b[23] (in)                                        0.00       5.50 r
-  u_int_mac/a_man_b[23] (INT_MAC)                         0.00       5.50 r
-  u_int_mac/U776/Y (NAND2X2)                              0.05       5.55 f
-  u_int_mac/U1429/Y (NAND2X4)                             0.04       5.59 r
-  u_int_mac/U444/Y (NAND2X5)                              0.05       5.64 f
-  u_int_mac/U1548/Y (INVX6)                               0.03       5.68 r
-  u_int_mac/U1505/Y (NAND2X4)                             0.04       5.71 f
-  u_int_mac/U720/Y (NAND2X4)                              0.04       5.75 r
-  u_int_mac/U236/Y (NAND2X6)                              0.05       5.80 f
-  u_int_mac/U843/Y (NAND2X4)                              0.04       5.84 r
-  u_int_mac/U167/Y (NAND3X4)                              0.05       5.89 f
-  u_int_mac/U155/Y (XOR2X4)                               0.07       5.96 f
-  u_int_mac/U587/Y (NAND2X4)                              0.04       6.00 r
-  u_int_mac/U819/Y (NAND2X4)                              0.04       6.04 f
-  u_int_mac/U1617/Y (XOR2X8)                              0.05       6.09 r
-  u_int_mac/U1586/Y (XOR2X8)                              0.08       6.18 f
-  u_int_mac/U1956/Y (OAI2BB1X4)                           0.09       6.26 f
-  u_int_mac/U1565/Y (OAI2BB1X4)                           0.04       6.31 r
-  u_int_mac/U1564/Y (XNOR2X4)                             0.09       6.40 r
-  u_int_mac/U1263/Y (XOR2X8)                              0.09       6.48 f
-  u_int_mac/U1262/Y (OAI2BB1X4)                           0.04       6.53 r
-  u_int_mac/U1978/Y (OAI2BB1X4)                           0.04       6.57 f
-  u_int_mac/U1977/Y (INVX4)                               0.03       6.60 r
-  u_int_mac/U994/Y (XOR2X4)                               0.08       6.67 r
-  u_int_mac/U1544/Y (XOR2X8)                              0.08       6.76 r
-  u_int_mac/U16/Y (NAND2X2)                               0.09       6.84 f
-  u_int_mac/U1261/Y (OAI21X8)                             0.05       6.89 r
-  u_int_mac/U1397/Y (AOI21X8)                             0.03       6.92 f
-  u_int_mac/U1396/Y (OAI21X8)                             0.08       7.01 r
-  u_int_mac/U1157/Y (INVX16)                              0.05       7.05 f
-  u_int_mac/U5/Y (MXI2X6)                                 0.07       7.13 f
-  u_int_mac/dp_mag[1] (INT_MAC)                           0.00       7.13 f
-  u_bg_acc/dp_mag[1] (BG_ACC)                             0.00       7.13 f
-  u_bg_acc/U345/Y (NOR2X4)                                0.08       7.21 r
-  u_bg_acc/U640/Y (NAND3X6)                               0.07       7.28 f
-  u_bg_acc/U426/Y (INVX3)                                 0.05       7.32 r
-  u_bg_acc/U1095/Y (NOR2X4)                               0.03       7.35 f
-  u_bg_acc/U716/Y (XOR2X8)                                0.06       7.40 r
-  u_bg_acc/U268/Y (NAND2X2)                               0.07       7.47 f
-  u_bg_acc/U295/Y (INVXL)                                 0.05       7.52 r
-  u_bg_acc/U637/Y (NOR2X2)                                0.02       7.55 f
-  u_bg_acc/U767/Y (OAI2BB1X4)                             0.09       7.63 f
-  u_bg_acc/U676/Y (INVX4)                                 0.03       7.67 r
-  u_bg_acc/U255/Y (NAND2X5)                               0.04       7.71 f
-  u_bg_acc/U342/Y (NAND2X6)                               0.04       7.75 r
-  u_bg_acc/U787/Y (XOR2X8)                                0.07       7.82 f
-  u_bg_acc/U243/Y (INVX6)                                 0.04       7.85 r
-  u_bg_acc/U1015/Y (NAND3X8)                              0.04       7.89 f
-  u_bg_acc/U1003/Y (XOR2X8)                               0.07       7.97 f
-  u_bg_acc/U724/Y (NAND2X8)                               0.05       8.01 r
-  u_bg_acc/U697/Y (NAND2X8)                               0.05       8.06 f
-  u_bg_acc/U696/Y (NAND2X8)                               0.05       8.11 r
-  u_bg_acc/U711/Y (NAND2X2)                               0.04       8.15 f
-  u_bg_acc/U653/Y (NAND2X2)                               0.04       8.20 r
-  u_bg_acc/U1001/Y (NAND3X4)                              0.07       8.27 f
-  u_bg_acc/U728/Y (NAND2X4)                               0.06       8.32 r
-  u_bg_acc/U213/Y (AND2X2)                                0.08       8.40 r
-  u_bg_acc/U777/Y (OAI2BB1X4)                             0.09       8.49 r
-  u_bg_acc/U562/Y (NAND2X4)                               0.05       8.53 f
-  u_bg_acc/U682/Y (OAI21X8)                               0.09       8.63 r
-  u_bg_acc/U730/Y (AOI21X8)                               0.05       8.68 f
-  u_bg_acc/U794/Y (AOI21X8)                               0.08       8.76 r
-  u_bg_acc/U830/Y (XOR2X8)                                0.06       8.82 r
-  u_bg_acc/U828/Y (XOR2X8)                                0.08       8.90 r
-  u_bg_acc/U164/Y (NOR2X2)                                0.05       8.96 f
-  u_bg_acc/U888/Y (NOR2X4)                                0.07       9.03 r
-  u_bg_acc/U857/Y (INVX2)                                 0.03       9.05 f
-  u_bg_acc/U1087/Y (OAI2BB1X4)                            0.10       9.16 f
-  u_bg_acc/U813/Y (OAI21X8)                               0.08       9.24 r
-  u_bg_acc/U812/Y (XOR2X8)                                0.08       9.31 r
-  u_bg_acc/U811/Y (XOR2X8)                                0.10       9.41 r
-  u_bg_acc/U137/Y (NAND2X2)                               0.06       9.47 f
-  u_bg_acc/U896/Y (OAI2B1X2)                              0.05       9.51 r
-  u_bg_acc/U939/Y (NAND2X4)                               0.06       9.57 f
-  u_bg_acc/U850/Y (NAND2X8)                               0.05       9.62 r
-  u_bg_acc/U84/Y (INVX4)                                  0.04       9.67 f
-  u_bg_acc/U1254/CO (ADDHX1)                              0.11       9.78 f
-  u_bg_acc/U1253/Y (NOR2X2)                               0.08       9.86 r
-  u_bg_acc/U55/Y (OAI21X1)                                0.09       9.95 f
-  u_bg_acc/U1049/Y (AOI21X4)                              0.09      10.04 r
-  u_bg_acc/U1281/Y (OAI21X1)                              0.07      10.11 f
-  u_bg_acc/U1288/Y (XNOR2X1)                              0.08      10.19 f
-  u_bg_acc/U1034/Y (AOI22X2)                              0.08      10.26 r
-  u_bg_acc/U1046/Y (OAI21X1)                              0.06      10.33 f
-  u_bg_acc/spill_mag_reg_reg_8_/D (DFFRHQX2)              0.00      10.33 f
-  data arrival time                                                 10.33
+  u_bg_acc/spill_mag_reg_reg_2_/CK (DFFRQX2)              0.00       0.50 r
+  u_bg_acc/spill_mag_reg_reg_2_/Q (DFFRQX2)               0.26       0.76 r
+  u_bg_acc/spill_mag[2] (BG_ACC)                          0.00       0.76 r
+  u_fp_acc/dp_mag[2] (FP_ACC)                             0.00       0.76 r
+  u_fp_acc/U165/Y (NOR2X1)                                0.05       0.81 f
+  u_fp_acc/U410/Y (NAND2BX2)                              0.09       0.89 f
+  u_fp_acc/U411/Y (AOI21X1)                               0.23       1.12 r
+  u_fp_acc/U160/Y (INVX1)                                 0.13       1.25 f
+  u_fp_acc/U159/Y (CLKAND2X2)                             0.10       1.35 f
+  u_fp_acc/U158/CO (ADDFHX1)                              0.13       1.48 f
+  u_fp_acc/U102/CO (ADDFHX1)                              0.15       1.63 f
+  u_fp_acc/U412/Y (NOR2X1)                                0.06       1.70 r
+  u_fp_acc/U156/Y (XOR2X1)                                0.10       1.80 r
+  u_fp_acc/U155/Y (NAND4BBX2)                             0.09       1.89 r
+  u_fp_acc/U154/Y (OAI21BX2)                              0.08       1.97 f
+  u_fp_acc/U427/Y (NOR2X4)                                0.11       2.08 r
+  u_fp_acc/U404/Y (AND2X2)                                0.12       2.20 r
+  u_fp_acc/U400/Y (INVXL)                                 0.05       2.25 f
+  u_fp_acc/U149/CO (ADDFXL)                               0.23       2.48 f
+  u_fp_acc/U525/CO (ADDFX1)                               0.17       2.65 f
+  u_fp_acc/U6/CO (ADDFHXL)                                0.17       2.83 f
+  u_fp_acc/U97/CO (ADDFX1)                                0.18       3.01 f
+  u_fp_acc/U95/CO (ADDFXL)                                0.18       3.19 f
+  u_fp_acc/U94/CO (ADDFXL)                                0.17       3.36 f
+  u_fp_acc/U91/Y (XNOR2XL)                                0.07       3.43 r
+  u_fp_acc/U204/Y (XOR2XL)                                0.15       3.58 f
+  u_fp_acc/U467/Y (NAND2BX2)                              0.11       3.69 f
+  u_fp_acc/U203/Y (NOR2X2)                                0.07       3.76 r
+  u_fp_acc/U175/Y (NAND2X2)                               0.09       3.85 f
+  u_fp_acc/U55/Y (NOR2X1)                                 0.18       4.02 r
+  u_fp_acc/U54/Y (NAND2X1)                                0.08       4.11 f
+  u_fp_acc/U86/Y (OAI211XL)                               0.06       4.17 r
+  u_fp_acc/U130/Y (INVX2)                                 0.05       4.22 f
+  u_fp_acc/U249/Y (AND2XL)                                0.10       4.33 f
+  u_fp_acc/U48/Y (AOI2B1XL)                               0.06       4.39 r
+  u_fp_acc/U82/Y (NAND3BXL)                               0.10       4.48 f
+  u_fp_acc/U81/Y (OAI31X1)                                0.12       4.60 r
+  u_fp_acc/U45/Y (OAI2B11X2)                              0.08       4.68 f
+  u_fp_acc/U44/Y (OAI32X2)                                0.14       4.82 r
+  u_fp_acc/U725/Y (NAND2BX2)                              0.09       4.92 r
+  u_fp_acc/U125/Y (INVX4)                                 0.05       4.97 f
+  u_fp_acc/U43/Y (INVX5)                                  0.10       5.07 r
+  u_fp_acc/U403/Y (OAI22XL)                               0.11       5.18 f
+  u_fp_acc/U804/Y (XOR2XL)                                0.12       5.30 f
+  u_fp_acc/U39/CO (ADDFHXL)                               0.19       5.48 f
+  u_fp_acc/U409/CO (ADDFXL)                               0.17       5.65 f
+  u_fp_acc/U816/CO (ADDFHXL)                              0.16       5.81 f
+  u_fp_acc/U38/CO (ADDFHXL)                               0.16       5.98 f
+  u_fp_acc/U78/CO (ADDFHX1)                               0.14       6.12 f
+  u_fp_acc/U814/CO (ADDFHX2)                              0.12       6.24 f
+  u_fp_acc/U820/CO (ADDFHX2)                              0.11       6.35 f
+  u_fp_acc/U819/CO (ADDFHXL)                              0.16       6.52 f
+  u_fp_acc/U812/CO (ADDFHX2)                              0.13       6.64 f
+  u_fp_acc/U811/CO (ADDFHX2)                              0.12       6.76 f
+  u_fp_acc/U824/CO (ADDFHX2)                              0.12       6.88 f
+  u_fp_acc/U823/CO (ADDFHX2)                              0.12       6.99 f
+  u_fp_acc/U405/CO (ADDFXL)                               0.17       7.16 f
+  u_fp_acc/U808/CO (ADDFHX2)                              0.13       7.29 f
+  u_fp_acc/U77/CO (ADDFXL)                                0.16       7.45 f
+  u_fp_acc/U807/CO (ADDFHXL)                              0.16       7.61 f
+  u_fp_acc/U828/CO (ADDFHXL)                              0.17       7.78 f
+  u_fp_acc/U827/CO (ADDFHX2)                              0.13       7.91 f
+  u_fp_acc/U121/CO (ADDFX1)                               0.17       8.08 f
+  u_fp_acc/U806/CO (ADDFHX2)                              0.12       8.20 f
+  u_fp_acc/U37/CO (ADDFHX1)                               0.13       8.33 f
+  u_fp_acc/U36/CO (ADDFHX1)                               0.14       8.47 f
+  u_fp_acc/U33/CO (ADDFX2)                                0.17       8.64 f
+  u_fp_acc/U117/S (ADDFX1)                                0.18       8.82 f
+  u_fp_acc/U31/Y (NAND2BX2)                               0.12       8.95 f
+  u_fp_acc/U28/Y (OAI21X2)                                0.15       9.10 r
+  u_fp_acc/U243/Y (NAND2BXL)                              0.10       9.20 f
+  u_fp_acc/U25/CO (ADDFXL)                                0.19       9.39 f
+  u_fp_acc/U74/CO (ADDFXL)                                0.17       9.56 f
+  u_fp_acc/U22/CO (ADDFHXL)                               0.17       9.73 f
+  u_fp_acc/U21/CO (ADDFXL)                                0.20       9.93 f
+  u_fp_acc/U974/Y (NOR3X1)                                0.08      10.00 r
+  u_fp_acc/U108/Y (XOR2XL)                                0.12      10.12 r
+  u_fp_acc/U383/Y (NAND2XL)                               0.08      10.20 f
+  u_fp_acc/U976/Y (OAI211XL)                              0.05      10.25 r
+  u_fp_acc/acc_reg_reg_30_/D (DFFRQX2)                    0.00      10.25 r
+  data arrival time                                                 10.25
 
   clock clk (rise edge)                                  10.00      10.00
   clock network delay (ideal)                             0.50      10.50
   clock uncertainty                                      -0.10      10.40
-  u_bg_acc/spill_mag_reg_reg_8_/CK (DFFRHQX2)             0.00      10.40 r
-  library setup time                                     -0.07      10.33
-  data required time                                                10.33
+  u_fp_acc/acc_reg_reg_30_/CK (DFFRQX2)                   0.00      10.40 r
+  library setup time                                     -0.15      10.25
+  data required time                                                10.25
   --------------------------------------------------------------------------
-  data required time                                                10.33
-  data arrival time                                                -10.33
+  data required time                                                10.25
+  data arrival time                                                -10.25
   --------------------------------------------------------------------------
   slack (MET)                                                        0.00
 

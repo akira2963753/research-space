@@ -3,29 +3,29 @@
 Report : area
 Design : BG_PE
 Version: O-2018.06
-Date   : Wed Aug 26 22:56:57 2026
+Date   : Thu Aug 27 12:02:34 2026
 ****************************************
 
 Library(s) Used:
 
     slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
 
-Number of ports:                          415
-Number of nets:                          5389
-Number of cells:                         4935
-Number of combinational cells:           4764
-Number of sequential cells:               168
+Number of ports:                          417
+Number of nets:                          4192
+Number of cells:                         3586
+Number of combinational cells:           3330
+Number of sequential cells:               253
 Number of macros/black boxes:               0
-Number of buf/inv:                       1025
-Number of references:                      26
+Number of buf/inv:                        443
+Number of references:                      30
 
-Combinational area:              24611.328434
-Buf/Inv area:                     2447.726478
-Noncombinational area:            2749.017645
+Combinational area:              15873.883472
+Buf/Inv area:                      958.204831
+Noncombinational area:            3917.491214
 Macro/Black Box area:                0.000000
 Net Interconnect area:      undefined  (No wire load specified)
 
-Total cell area:                 27360.346079
+Total cell area:                 19791.374686
 Total area:                 undefined
 
 Hierarchical area distribution
@@ -36,11 +36,11 @@ Hierarchical area distribution
 Hierarchical cell                 Absolute    Percent  Combi-      Noncombi-  Black-
                                   Total       Total    national    national   boxes   Design
 --------------------------------  ----------  -------  ----------  ---------  ------  ---------
-BG_PE                             27360.3461    100.0    626.5728  1107.0864  0.0000  BG_PE
-u_bg_acc                           7619.7746     27.8   6474.5857  1145.1888  0.0000  BG_ACC
-u_fp_acc                           4934.2609     18.0   4437.5185   496.7424  0.0000  FP_ACC
-u_int_mac                         13072.6514     47.8  13072.6514     0.0000  0.0000  INT_MAC
+BG_PE                             19791.3747    100.0    708.4224  1412.6112  0.0000  BG_PE
+u_bg_acc                           8222.3569     41.5   6217.7473  2004.6096  0.0000  BG_ACC
+u_fp_acc                           5024.5777     25.4   4524.3073   500.2704  0.0000  FP_ACC
+u_int_mac                          4423.4064     22.4   4423.4064     0.0000  0.0000  INT_MAC
 --------------------------------  ----------  -------  ----------  ---------  ------  ---------
-Total                                                  24611.3284  2749.0176  0.0000
+Total                                                  15873.8835  3917.4912  0.0000
 
 1

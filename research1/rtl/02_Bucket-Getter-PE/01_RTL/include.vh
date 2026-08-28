@@ -44,9 +44,9 @@
     //       Top-6 Adaptive Circular Bucket Configuration
     //=============================================================
     `define BG_BUCKET_COUNT 6
-    `define BG_LOGICAL_BUCKET_WIDTH 4
-    `define BG_BUCKET_WIDTH `BG_LOGICAL_BUCKET_WIDTH
-    `define BG_EXP_PER_BUCKET 4
+    `define BG_BUCKET_WIDTH 4
+    `define BG_LOGICAL_BUCKET_WIDTH `BG_BUCKET_WIDTH
+    `define BG_EXP_PER_BUCKET `BG_BUCKET_WIDTH
     `define BG_BUCKET_PTR_W $clog2(`BG_BUCKET_COUNT)
     `define BG_BUCKET_SHIFT_W $clog2(`BG_EXP_PER_BUCKET)
     `define BG_FIFO_DEPTH 2

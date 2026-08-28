@@ -7,38 +7,34 @@
 * Author:       Marco <harry2963753@gmail.com>
 *
 ******************************************************************************/
-
 `include "include.vh"
 
 module FP_ACC (
-    input clk,
-    input rst_n,
-    input acc_clear,
-    input in_valid,
-    input dp_sign, // dot-product sign (from INT_MAC)
-    input [`BFP_MAG_W-1:0] dp_mag, // dot-product magnitude
-    input signed [`BFP_BEXP_W-1:0] blk_exp, // w_exp + a_exp - BFP_EXP_BIAS
-    output o_sign,
-    output [`FPACC_EXP_W-1:0] o_exp,
-    output [`FPACC_MAN_W-1:0] o_man
+    input logic clk,
+    input logic rst_n,
+    input logic acc_clear,
+    input logic in_valid,
+    input logic dp_sign,
+    input logic [`BFP_MAG_W-1:0] dp_mag,
+    input logic signed [`BFP_BEXP_W-1:0] blk_exp,
+    output logic o_sign,
+    output logic [`FPACC_EXP_W-1:0] o_exp,
+    output logic [`FPACC_MAN_W-1:0] o_man
 );
 
     import BFP_PKG::*;
 
-    logic [`FPACC_W-1:0] fp_a; // Norm result of this cycle's dot product
-    logic [`FPACC_W-1:0] acc_next; // accumulator after FP addition
-    logic [`FPACC_W-1:0] acc_reg; // FP accumulator (the single register)
+    //=============================================================
+    //                     FP Accumulator State
+    //=============================================================
+    logic [`FPACC_W-1:0] fp_input;
+    logic [`FPACC_W-1:0] acc_next;
+    logic [`FPACC_W-1:0] acc_reg;
 
-    //==========================================================================
-    // Combinational Datapath
-    //==========================================================================
-    assign fp_a = NORM(dp_sign, dp_mag, blk_exp);
-    assign acc_next = FP_ADD(fp_a, acc_reg);
+    assign fp_input = NORM(dp_sign, dp_mag, blk_exp);
+    assign acc_next = FP_ADD(fp_input, acc_reg);
 
-    //==========================================================================
-    // FP Accumulator Register
-    //==========================================================================
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin : ACCUMULATOR
         if(!rst_n) acc_reg <= '0;
         else if(acc_clear) acc_reg <= '0;
         else if(in_valid) acc_reg <= acc_next;

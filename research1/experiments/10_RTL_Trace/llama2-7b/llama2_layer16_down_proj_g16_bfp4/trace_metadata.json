@@ -41,6 +41,8 @@
     "rounding": "nearest_even"
   },
   "bfp_format": "BFP4 (1 sign + 3-bit integer magnitude, shared biased-E5 scale exponent)",
+  "packed_mantissa_bits": 48,
+  "packed_mantissa_hex_digits": 12,
   "shared_exponent_semantics": "value = signed_integer_magnitude * 2**(encoded_exponent - exponent_bias)",
   "unbiased_exponent_range": [
     -15,
@@ -117,5 +119,6 @@
   "cycles_per_dot_product": 689,
   "dot_product_count": 256,
   "valid_cycles": 176128,
-  "total_cycles": 176384
+  "total_cycles": 176384,
+  "pack_unpack_self_check": "pass"
 }
