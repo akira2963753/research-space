@@ -24,12 +24,12 @@ A state-of-the-art BFP processing element (BFP-PE) can perform MAC operations wi
 However, shared exponents differ across blocks, so partial sums cannot be directly accumulated in the integer domain.
 An FP accumulator (FP-Acc) is therefore required to perform inter-block exponent alignment and floating-point accumulation.
 The FP-Acc typically includes alignment, normalization, addition, and fixed-point-to-floating-point conversion logic.
-In synthesized low-bit BFP-PE configurations, the FP-Acc accounts for up to 75\% of PE power and 55\% of its area (Fig.~\ref{fig:bfp_pe_ppa}), making it a primary obstacle to improving the energy and area efficiency of BFP accelerators~\cite{bucketgetter2023,winacc2025,smartblock2025}.
+In synthesized low-bit BFP-PE configurations, the FP-Acc accounts for up to 68\% of PE power and 42\% of its area when the PE is driven by LLaMA2-7B's real activation distribution (Fig.~\ref{fig:bfp_pe_ppa}), making it a primary obstacle to improving the energy and area efficiency of BFP accelerators~\cite{bucketgetter2023,winacc2025,smartblock2025}.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=\linewidth]{figures/baseline_bfp_pe_component_power_area.pdf}
-    \caption{Component-level power and area breakdown of a synthesized baseline BFP-PE, showing FP-Acc dominance.}
+    \caption{Component-level power and area of a synthesized baseline BFP-PE. Power is measured under LLaMA2-7B's real activation distribution.}
     \label{fig:bfp_pe_ppa}
 \end{figure}
 

@@ -1,7 +1,7 @@
-\section{Dynamic Exponent-Window Accumulation}
+\section{Proposed Method}
 \label{sec:design}
 
-\subsection{Partial-Sum Concentration and DEWA}
+\subsection{Dynamic Exponent-Window Accumulation}
 We observed the distribution of partial sums in LLaMA2-7B (Fig.~\ref{fig:bfp4_exponent_dist}).
 The distribution remains highly concentrated, indicating that a low-cost accumulator with a narrow dynamic range can be introduced prior to forwarding data to the FP-Acc.
 
@@ -14,10 +14,10 @@ The distribution remains highly concentrated, indicating that a low-cost accumul
 
 Specifically, we define an accumulation window
 \begin{equation}
-    [E_{\max} - T_d,\; E_{\max} + T_r]
+    [E_{\max} - T_{\mathrm{drop}},\; E_{\max} + T_{\mathrm{replace}}]
     \label{eq:window}
 \end{equation}
-where $E_{\max}$ denotes the exponent of the current maximum partial sum, and $T_d$ and $T_r$ represent the drop and replace thresholds, respectively.
+where $E_{\max}$ denotes the exponent of the current maximum partial sum, and $T_{\mathrm{drop}}$ and $T_{\mathrm{replace}}$ are the drop and replace thresholds.
 When a new partial sum arrives:
 \begin{itemize}
     \item if its exponent falls below the lower bound, it is discarded;
@@ -62,5 +62,32 @@ Paired with 4-bit mantissas, the full configuration is denoted W-BFP4 / T2A-BiE4
     \end{tabular*}
 \end{table}
 
-Activation-only BiE and Top-2 capping have negligible impact on LLaMA2-7B perplexity relative to full BiE.
+Activation-only BiE and Top-2 capping have negligible impact on LLaMA2-7B perplexity relative to full BiE (Fig.~\ref{fig:ppl_delta_comparison}).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/ppl_delta_comparison.pdf}
+    \caption{WikiText-2 $\Delta$PPL versus FP16 (G16). T2A-BiE stays close to full BiE and activation-only BiE.}
+    \label{fig:ppl_delta_comparison}
+\end{figure}
+
+\subsection{Hybrid Top-2 DEWA}
+\label{subsec:hybrid}
+Top-2 keeps activation outliers from shifting $E_{\max}$, which is what DEWA needs to keep a narrow window.
+We apply the two together and call the result \textbf{Hybrid Top-2 DEWA}: W-BFP4 / T2A-BiE4 encoding with the window of Eq.~\eqref{eq:window} on the normal accumulator.
+
+A full 2-D sweep over every $(T_{\mathrm{drop}}, T_{\mathrm{replace}})$ pair is more than we need to pick a design point.
+Fig.~\ref{fig:hybrid_delta_ppl} shows a representative slice: the symmetric corners $(8,8)$ and $(10,10)$, and a $T_{\mathrm{drop}}=9$ cut with $T_{\mathrm{replace}}$ from 9 down to 2.
+Along this cut, $\Delta$PPL from the T2A-BiE4 baseline stays near 0.01 down to $(9,3)$ and then rises at $(9,2)$; $(8,8)$ is also worse.
+
+Reducing $T_{\mathrm{replace}}$ shortens the integer window and cuts the dynamic range of the low-cost accumulator, which saves area.
+$(9,3)$ is the smallest $T_{\mathrm{replace}}$ on this slice that remains on the accuracy plateau, so we take it as the design point that trades accumulator area against WikiText-2 loss.
+Section~\ref{sec:architecture} implements the hybrid PE at $(T_{\mathrm{drop}}, T_{\mathrm{replace}})=(9,3)$.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/hybrid_tskip_treplace_delta_ppl.pdf}
+    \caption{WikiText-2 $\Delta$PPL of Hybrid Top-2 DEWA versus T2A-BiE4 (G16) on a representative $(T_{\mathrm{drop}}, T_{\mathrm{replace}})$ slice. $(9,3)$ is the selected design point.}
+    \label{fig:hybrid_delta_ppl}
+\end{figure}
 

@@ -6,7 +6,7 @@ Block Floating Point (BFP) offers a favorable accuracy--cost tradeoff by assigni
 Recent BFP accelerators perform intra-block multiply--accumulate (MAC) with fixed-point arithmetic, but inter-block partial sums with mismatched exponents must still be merged in a floating-point accumulator (FP-Acc)~\cite{bucketgetter2023,winacc2025,smartblock2025}.
 
 Two coupled bottlenecks limit the efficiency of BFP-based LLM inference.
-First, the FP-Acc dominates processing-element (PE) cost: in synthesized low-bit configurations it can account for up to 75\% of power and 55\% of area~\cite{bucketgetter2023,winacc2025,smartblock2025}.
+First, the FP-Acc dominates processing-element (PE) cost: in synthesized low-bit configurations it can account for up to 68\% of power and 42\% of area~\cite{bucketgetter2023,winacc2025,smartblock2025}.
 Second, activation outliers compress the effective mantissa of co-located normal values and widen the exponent spread of partial sums, increasing FP-Acc activity~\cite{bie2024,oiso2026,bbal2025,harmonia2026}.
 
 This paper develops a hardware-friendly co-design that addresses both bottlenecks jointly.
@@ -17,4 +17,4 @@ Our contributions are:
     \item \textbf{Evaluation on LLaMA2-7B:} we quantify perplexity, outlier occupancy, and FP-Acc request reduction under a consistent WikiText-2 protocol, showing negligible accuracy loss for the proposed W-BFP4 / T2A-BiE4 design point.
 \end{itemize}
 
-The remainder of this paper reviews BFP deployment challenges (Section~\ref{sec:background}), presents DEWA and Top-2 activation routing (Section~\ref{sec:design}), describes the BFP-PE architecture (Section~\ref{sec:architecture}), reports experimental results (Section~\ref{sec:evaluation}), and concludes (Section~\ref{sec:conclusion}).
+The remainder of this paper reviews BFP deployment challenges (Section~\ref{sec:background}), presents DEWA, Top-2 selection, and Hybrid Top-2 DEWA (Section~\ref{sec:design}), describes the BFP-PE architecture (Section~\ref{sec:architecture}), reports experimental results (Section~\ref{sec:evaluation}), and concludes (Section~\ref{sec:conclusion}).
