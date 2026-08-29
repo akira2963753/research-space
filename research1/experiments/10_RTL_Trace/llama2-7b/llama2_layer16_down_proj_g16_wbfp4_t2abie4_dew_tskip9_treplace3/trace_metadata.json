@@ -1,0 +1,170 @@
+{
+  "model": "meta-llama/Llama-2-7b-hf",
+  "model_revision": "01c7f73d771dfac7d292323805ebc428287df4f9",
+  "dataset": "Salesforce/wikitext/wikitext-2-raw-v1",
+  "dataset_split": "test",
+  "dataset_fingerprint": "a46124b21ac53738",
+  "context_selection": "first complete tokenized context",
+  "context_length": 2048,
+  "target_module": "model.layers.16.mlp.down_proj",
+  "target_layer": 16,
+  "upstream_execution": "layers 0 through 16 use W-BFP4, Top-2 T2A-BiE4, asymmetric DEWA Tskip9/Treplace3, and direct FP-ACC",
+  "selected_weight_source": "original FP16 target weights encoded as W-BFP4",
+  "selected_activation_source": "input to wrapped target down_proj before its local T2A-BiE quantization",
+  "linear_input_features": 11008,
+  "linear_output_features": 4096,
+  "quantized_linear_modules_before_capture": 119,
+  "selection_policy": {
+    "tokens": "contiguous positions 128 through 143",
+    "channels": "same evenly spaced channels as Experiment 10"
+  },
+  "source_hashes": {
+    "context_input_ids_sha256": "8e2fe8e70b134c1a8d429157a16f45fea03e63d75a739166de4db2170b209a47",
+    "selected_weight_fp16_sha256": "00e57f46890b58a6bd14ecca8792bbb0dfa57033d00b754d12b99f91da133c72",
+    "selected_activation_fp16_sha256": "28eeabdeade8aadf044dbb350d2c95cb9a224d5d46741c4bf99edee5eda90685"
+  },
+  "software": {
+    "python": "3.13.15",
+    "pytorch": "2.11.0+cu128",
+    "transformers": "5.13.1",
+    "datasets": "4.0.0",
+    "triton": "3.6.0",
+    "cuda": "12.8",
+    "gpu": "NVIDIA L4",
+    "tokenizer_class": "LlamaTokenizer"
+  },
+  "trace_format": "dew_pe_t2a_bie4_cycle_input_v1",
+  "trace_config": {
+    "group_size": 16,
+    "exponent_bits": 5,
+    "exponent_bias": 15,
+    "mantissa_bits": 3,
+    "sigma_k": 3.0,
+    "max_outliers_per_block": 2,
+    "rounding": "nearest_even",
+    "t_skip": 9,
+    "t_replace": 3,
+    "dew_acc_width": 24
+  },
+  "weight_format": "W-BFP4 G16, 1 sign plus 3-bit magnitude plus biased-E5 scale",
+  "activation_format": "T2A-BiE4 G16, Top-2 capped, dual biased-E5 scales",
+  "threshold_contract": {
+    "formula": "mean(X) + 3 * std(X)",
+    "statistics_domain": "signed complete nn.Linear input tensor",
+    "std_correction": 0,
+    "comparison": "candidate iff abs(X) > threshold",
+    "value": 0.27787327766418457
+  },
+  "outlier_index_encoding": {
+    "zero": [
+      15,
+      15
+    ],
+    "one": [
+      "oi1",
+      0
+    ],
+    "two": [
+      "oi1",
+      "oi2"
+    ],
+    "lane_zero_rule": "lane 0 is oi1 when two outliers are encoded"
+  },
+  "lane_packing": "lane 0 occupies the least-significant bits",
+  "weight_timing": "valid block uses registered weight; weight fields preload the next block",
+  "tensor_shapes": {
+    "weight": [
+      16,
+      11008
+    ],
+    "activation": [
+      16,
+      11008
+    ]
+  },
+  "token_positions": [
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143
+  ],
+  "token_ids": [
+    22040,
+    4518,
+    525,
+    29879,
+    13740,
+    376,
+    310,
+    278,
+    11456,
+    3652,
+    450,
+    6242,
+    383,
+    3568,
+    2056,
+    540
+  ],
+  "output_channels": [
+    0,
+    273,
+    546,
+    819,
+    1092,
+    1365,
+    1638,
+    1911,
+    2184,
+    2457,
+    2730,
+    3003,
+    3276,
+    3549,
+    3822,
+    4095
+  ],
+  "blocks_per_dot_product": 688,
+  "records_per_dot_product": 689,
+  "dot_product_count": 256,
+  "valid_records": 176128,
+  "logical_records": 176384,
+  "candidate_outliers_per_block_histogram": [
+    9251,
+    1585,
+    159,
+    12,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "encoded_outliers_per_block_histogram": [
+    9251,
+    1585,
+    172
+  ],
+  "pack_unpack_self_check": "pass",
+  "numerical_golden_generated": false
+}

@@ -1,0 +1,129 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : DEW_PE
+Version: O-2018.06
+Date   : Fri Aug 28 22:54:55 2026
+****************************************
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+  Startpoint: mac_outlier_mag_reg_reg_6_
+              (rising edge-triggered flip-flop clocked by clk)
+  Endpoint: u_fp_acc/acc_reg_reg_16_
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.50       0.50
+  mac_outlier_mag_reg_reg_6_/CK (DFFRQXL)                 0.00       0.50 r
+  mac_outlier_mag_reg_reg_6_/Q (DFFRQXL)                  0.31       0.81 f
+  U190/Y (NOR3X1)                                         0.15       0.96 r
+  U240/Y (AOI211X4)                                       0.12       1.08 f
+  U368/Y (AO22X2)                                         0.16       1.24 f
+  u_fp_acc/dp_mag[2] (FP_ACC)                             0.00       1.24 f
+  u_fp_acc/U118/Y (AOI2B1XL)                              0.13       1.37 f
+  u_fp_acc/U822/Y (OAI21BX1)                              0.07       1.44 r
+  u_fp_acc/U116/Y (OAI2BB1X2)                             0.08       1.52 r
+  u_fp_acc/U237/Y (AOI21X2)                               0.04       1.56 f
+  u_fp_acc/U111/Y (INVX1)                                 0.05       1.61 r
+  u_fp_acc/U110/Y (CLKNAND2X2)                            0.06       1.67 f
+  u_fp_acc/U291/Y (OAI21X1)                               0.09       1.75 r
+  u_fp_acc/U103/Y (AOI21X2)                               0.06       1.82 f
+  u_fp_acc/U13/Y (INVXL)                                  0.08       1.90 r
+  u_fp_acc/U831/Y (AOI21X1)                               0.08       1.97 f
+  u_fp_acc/U832/Y (XOR2X1)                                0.09       2.06 f
+  u_fp_acc/U835/Y (NAND3BX2)                              0.13       2.19 f
+  u_fp_acc/U840/Y (OAI31X4)                               0.12       2.30 r
+  u_fp_acc/U841/Y (NAND2BX4)                              0.13       2.43 r
+  u_fp_acc/U96/Y (NOR2X3)                                 0.04       2.48 f
+  u_fp_acc/U220/Y (NOR2X1)                                0.07       2.54 r
+  u_fp_acc/U492/Y (OAI21X1)                               0.09       2.63 f
+  u_fp_acc/U860/Y (INVX1)                                 0.05       2.68 r
+  u_fp_acc/U86/Y (OAI21X1)                                0.07       2.75 f
+  u_fp_acc/U84/Y (INVX1)                                  0.05       2.80 r
+  u_fp_acc/U80/Y (NAND2X1)                                0.05       2.85 f
+  u_fp_acc/U79/Y (CLKNAND2X2)                             0.04       2.89 r
+  u_fp_acc/U861/Y (OAI211X2)                              0.06       2.95 f
+  u_fp_acc/U862/Y (OAI2BB1X2)                             0.05       3.00 r
+  u_fp_acc/U744/Y (AOI22XL)                               0.05       3.05 f
+  u_fp_acc/U77/Y (AOI22XL)                                0.11       3.16 r
+  u_fp_acc/U864/Y (AOI2BB2X2)                             0.10       3.26 r
+  u_fp_acc/U76/Y (INVX4)                                  0.05       3.31 f
+  u_fp_acc/U22/Y (INVX4)                                  0.12       3.43 r
+  u_fp_acc/U972/Y (NAND2X2)                               0.07       3.50 f
+  u_fp_acc/U73/Y (NOR2X2)                                 0.10       3.60 r
+  u_fp_acc/U186/Y (NAND2X2)                               0.10       3.71 f
+  u_fp_acc/U6/Y (NAND2BXL)                                0.13       3.84 f
+  u_fp_acc/U1025/Y (NAND3XL)                              0.07       3.91 r
+  u_fp_acc/U373/Y (NOR2XL)                                0.05       3.96 f
+  u_fp_acc/U172/Y (NOR2X1)                                0.06       4.02 r
+  u_fp_acc/U61/Y (NAND2XL)                                0.06       4.09 f
+  u_fp_acc/U1031/Y (NOR2X1)                               0.05       4.14 r
+  u_fp_acc/U168/Y (AOI21X1)                               0.07       4.20 f
+  u_fp_acc/U1045/Y (OAI21X1)                              0.07       4.27 r
+  u_fp_acc/U1046/Y (NAND2BX4)                             0.07       4.35 r
+  u_fp_acc/U60/Y (INVX4)                                  0.04       4.39 f
+  u_fp_acc/U1065/Y (INVX4)                                0.10       4.49 r
+  u_fp_acc/U1066/Y (OAI22X1)                              0.11       4.60 f
+  u_fp_acc/U1067/Y (XOR2X1)                               0.09       4.69 f
+  u_fp_acc/U1068/Y (OR2X1)                                0.14       4.83 f
+  u_fp_acc/U160/Y (AOI21X1)                               0.10       4.93 r
+  u_fp_acc/U303/Y (OAI21X2)                               0.06       4.99 f
+  u_fp_acc/U159/Y (AOI21X1)                               0.09       5.08 r
+  u_fp_acc/U1083/Y (OAI21X1)                              0.08       5.16 f
+  u_fp_acc/U46/Y (AOI21X1)                                0.10       5.26 r
+  u_fp_acc/U1090/Y (OAI21X2)                              0.06       5.32 f
+  u_fp_acc/U420/Y (AOI21X1)                               0.09       5.41 r
+  u_fp_acc/U1096/Y (OAI21X1)                              0.08       5.49 f
+  u_fp_acc/U801/Y (AOI21X1)                               0.10       5.59 r
+  u_fp_acc/U1097/Y (OAI21X2)                              0.06       5.66 f
+  u_fp_acc/U158/Y (AOI21X2)                               0.09       5.74 r
+  u_fp_acc/U157/Y (OAI21X2)                               0.06       5.80 f
+  u_fp_acc/U1098/Y (AOI21X2)                              0.08       5.89 r
+  u_fp_acc/U1099/Y (OAI21X1)                              0.08       5.97 f
+  u_fp_acc/U1100/Y (AOI21X2)                              0.09       6.06 r
+  u_fp_acc/U1101/Y (OAI21X2)                              0.06       6.12 f
+  u_fp_acc/U726/Y (AO21X2)                                0.13       6.25 f
+  u_fp_acc/U152/CO (ADDFHX1)                              0.14       6.38 f
+  u_fp_acc/U151/CO (ADDFX1)                               0.17       6.56 f
+  u_fp_acc/U1108/CO (ADDFHX2)                             0.12       6.68 f
+  u_fp_acc/U39/CO (ADDFHX1)                               0.13       6.81 f
+  u_fp_acc/U38/CO (ADDFHX1)                               0.14       6.95 f
+  u_fp_acc/U148/S (ADDFX1)                                0.18       7.13 f
+  u_fp_acc/U146/Y (INVXL)                                 0.06       7.20 r
+  u_fp_acc/U144/Y (NAND2X1)                               0.06       7.25 f
+  u_fp_acc/U35/Y (AOI21X2)                                0.11       7.36 r
+  u_fp_acc/U33/Y (INVX2)                                  0.08       7.44 f
+  u_fp_acc/U1212/Y (NOR2X2)                               0.23       7.67 r
+  u_fp_acc/U1225/Y (AOI22XL)                              0.15       7.82 f
+  u_fp_acc/U304/Y (NAND2XL)                               0.08       7.89 r
+  u_fp_acc/U136/Y (INVXL)                                 0.05       7.94 f
+  u_fp_acc/U1226/Y (MX2X1)                                0.12       8.07 f
+  u_fp_acc/U132/Y (OAI21XL)                               0.04       8.11 r
+  u_fp_acc/U126/Y (AOI21XL)                               0.08       8.18 f
+  u_fp_acc/U125/Y (OAI21XL)                               0.08       8.26 r
+  u_fp_acc/acc_reg_reg_16_/D (DFFRQX2)                    0.00       8.26 r
+  data arrival time                                                  8.26
+
+  clock clk (rise edge)                                   8.00       8.00
+  clock network delay (ideal)                             0.50       8.50
+  clock uncertainty                                      -0.10       8.40
+  u_fp_acc/acc_reg_reg_16_/CK (DFFRQX2)                   0.00       8.40 r
+  library setup time                                     -0.14       8.26
+  data required time                                                 8.26
+  --------------------------------------------------------------------------
+  data required time                                                 8.26
+  data arrival time                                                 -8.26
+  --------------------------------------------------------------------------
+  slack (MET)                                                        0.00
+
+
+1

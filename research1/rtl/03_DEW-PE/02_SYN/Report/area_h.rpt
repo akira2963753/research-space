@@ -1,0 +1,47 @@
+ 
+****************************************
+Report : area
+Design : DEW_PE
+Version: O-2018.06
+Date   : Fri Aug 28 22:54:55 2026
+****************************************
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+Number of ports:                          708
+Number of nets:                          5443
+Number of cells:                         4442
+Number of combinational cells:           4241
+Number of sequential cells:               197
+Number of macros/black boxes:               0
+Number of buf/inv:                        958
+Number of references:                      43
+
+Combinational area:              19296.749140
+Buf/Inv area:                     2056.824067
+Noncombinational area:            3089.822417
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 22386.571557
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area            Local cell area
+                                  -------------------  ----------------------------- 
+Hierarchical cell                 Absolute    Percent  Combi-      Noncombi-  Black-
+                                  Total       Total    national    national   boxes   Design
+--------------------------------  ----------  -------  ----------  ---------  ------  ----------------------------------
+DEW_PE                            22386.5716    100.0   1116.9648  1743.5376  0.0000  DEW_PE
+u_dew_acc                          6002.5393     26.8   5152.9969   849.5424  0.0000  DEW_ACC_ACC_W24_T_SKIP9_T_REPLACE3
+u_fp_acc                           5120.5393     22.9   4623.7969   496.7424  0.0000  FP_ACC
+u_int_mac                          6026.5296     26.9   6026.5296     0.0000  0.0000  INT_MAC
+u_outlier_dispatcher               2376.4609     10.6   2376.4609     0.0000  0.0000  Outlier_Dispatcher
+--------------------------------  ----------  -------  ----------  ---------  ------  ----------------------------------
+Total                                                  19296.7491  3089.8224  0.0000
+
+1

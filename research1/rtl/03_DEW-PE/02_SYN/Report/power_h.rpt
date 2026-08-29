@@ -1,0 +1,41 @@
+ 
+****************************************
+Report : power
+        -hier
+        -analysis_effort low
+Design : DEW_PE
+Version: O-2018.06
+Date   : Fri Aug 28 22:54:55 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 0.9  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+--------------------------------------------------------------------------------
+                                       Switch   Int      Leak     Total
+Hierarchy                              Power    Power    Power    Power    %
+--------------------------------------------------------------------------------
+DEW_PE                                    0.222    0.802 7.09e+07    1.096 100.0
+  u_fp_acc (FP_ACC)                    2.43e-02 5.61e-02 1.36e+07 9.40e-02   8.6
+  u_dew_acc (DEW_ACC_ACC_W24_T_SKIP9_T_REPLACE3)
+                                       5.87e-02    0.136 1.69e+07    0.211  19.3
+  u_int_mac (INT_MAC)                     0.108    0.410 2.66e+07    0.544  49.7
+  u_outlier_dispatcher (Outlier_Dispatcher)
+                                       1.74e-02 2.21e-02 6.57e+06 4.61e-02   4.2
+1
