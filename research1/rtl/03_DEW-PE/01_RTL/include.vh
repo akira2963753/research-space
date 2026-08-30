@@ -25,6 +25,7 @@
     //=============================================================
     `define BFP_PROD_W (2 * `BFP_MAN_W)
     `define BFP_SPROD_W (`BFP_PROD_W + 1)
+    `define BFP_SPROD_BW (`BFP_GSIZE * `BFP_SPROD_W)
     `define BFP_SUM_W (`BFP_SPROD_W + $clog2(`BFP_GSIZE))
     `define BFP_MAG_W (`BFP_SUM_W - 1)
     `define BFP_LOD_W $clog2(`BFP_MAG_W)

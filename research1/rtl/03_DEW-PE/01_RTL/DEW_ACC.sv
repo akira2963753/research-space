@@ -33,7 +33,13 @@ module DEW_ACC #(
 
     localparam int SPILL_FORMAT_W = `BFP_BEXP_W + `BFP_MAG_W;
     localparam int SPILL_INDEX_W = (ACC_W > 0)? $clog2(ACC_W + 1) : 1;
+    localparam int ALIGN_MAX_SHIFT = (T_SKIP > T_REPLACE)?
+                                     T_SKIP - 1 : T_REPLACE - 1;
+    localparam int ALIGN_SHIFT_W = (ALIGN_MAX_SHIFT > 0)?
+                                   $clog2(ALIGN_MAX_SHIFT + 1) : 1;
     localparam logic [SPILL_INDEX_W-1:0] SPILL_KEEP_MSB = `BFP_MAG_W - 1;
+    localparam logic signed [`BFP_BEXP_W:0] SKIP_THRESHOLD = -T_SKIP;
+    localparam logic signed [`BFP_BEXP_W:0] REPLACE_THRESHOLD = T_REPLACE;
 
     function automatic [SPILL_FORMAT_W-1:0] FORMAT_SPILL(
         input logic [ACC_W:0] raw_mag,
@@ -57,11 +63,11 @@ module DEW_ACC #(
     endfunction
 
     //=============================================================
-    //                    Accumulator Registers
+    //                Accumulator and Eacc State
     //=============================================================
-    logic acc_valid_reg, acc_valid_next;
+    logic eacc_valid_reg, eacc_valid_next;
+    logic signed [`BFP_BEXP_W-1:0] eacc_exp_reg, eacc_exp_next;
     logic signed [ACC_W-1:0] acc_value_reg, acc_value_next;
-    logic signed [`BFP_BEXP_W-1:0] acc_lsb_exp_reg, acc_lsb_exp_next;
 
     logic spill_valid_reg, spill_last_reg;
     logic spill_sign_reg;
@@ -79,25 +85,32 @@ module DEW_ACC #(
     logic [ACC_W:0] spill_raw_mag_work;
     logic signed [`BFP_BEXP_W-1:0] spill_raw_exp_work;
 
+    logic dp_nonzero_work;
+    logic load_work, skip_work, replace_work, align_work;
+    logic signed [`BFP_BEXP_W:0] delta_work;
+    logic [ALIGN_SHIFT_W-1:0] align_shift_work;
+
     logic signed [ACC_W-1:0] input_value_work;
-    logic [ACC_W-1:0] acc_mag_work, final_mag_work;
-    logic [ACC_W:0] old_mag_aligned_work, new_mag_aligned_work;
-    logic signed [ACC_W:0] old_value_aligned_work;
-    logic signed [ACC_W:0] new_value_aligned_work;
+    logic signed [ACC_W-1:0] shift_value_work, bypass_value_work;
+    logic [ACC_W-1:0] shift_mag_work, aligned_mag_work;
+    logic signed [ACC_W:0] aligned_value_work, bypass_value_ext_work;
     logic signed [ACC_W:0] candidate_work;
-    logic signed [`BFP_BEXP_W-1:0] common_lsb_exp_work;
     logic overflow_work;
-    integer new_msb_index_work, acc_msb_index_work;
-    integer new_lead_exp_work, acc_lead_exp_work, delta_work;
-    integer old_shift_work, new_shift_work;
+
+    logic signed [ACC_W-1:0] skip_mux_value_work;
+    logic signed [ACC_W-1:0] replace_mux_value_work;
+    logic signed [`BFP_BEXP_W-1:0] align_exp_work;
+    logic signed [`BFP_BEXP_W-1:0] replace_mux_exp_work;
+    logic replace_mux_valid_work;
+    logic [ACC_W-1:0] final_mag_work;
 
     assign in_ready = !spill_valid_reg;
     assign input_fire = in_valid && in_ready;
 
     always_comb begin : DEW_UPDATE
-        acc_valid_next = acc_valid_reg;
+        eacc_valid_next = eacc_valid_reg;
+        eacc_exp_next = eacc_exp_reg;
         acc_value_next = acc_value_reg;
-        acc_lsb_exp_next = acc_lsb_exp_reg;
         spill_push_valid_work = 1'b0;
         spill_push_last_work = 1'b0;
         spill_push_sign_work = 1'b0;
@@ -106,85 +119,86 @@ module DEW_ACC #(
         spill_raw_mag_work = '0;
         spill_raw_exp_work = '0;
 
+        dp_nonzero_work = dp_mag != 0;
+        delta_work = $signed({blk_exp[`BFP_BEXP_W-1], blk_exp})
+                     - $signed({eacc_exp_reg[`BFP_BEXP_W-1], eacc_exp_reg});
+        load_work = dp_nonzero_work && !eacc_valid_reg;
+        skip_work = dp_nonzero_work
+                  && eacc_valid_reg
+                  && delta_work <= SKIP_THRESHOLD;
+        replace_work = dp_nonzero_work
+                     && eacc_valid_reg
+                     && delta_work >= REPLACE_THRESHOLD;
+        align_work = dp_nonzero_work
+                   && eacc_valid_reg
+                   && !skip_work
+                   && !replace_work;
+
         input_value_work = $signed({{(ACC_W-`BFP_SUM_W){1'b0}}, 1'b0, dp_mag});
         if(dp_sign) input_value_work = -input_value_work;
 
-        acc_mag_work = (acc_value_reg[ACC_W-1])?
-                       $unsigned(-acc_value_reg) : $unsigned(acc_value_reg);
+        // Smaller-exponent operand uses the shared shifter; the other bypasses.
+        if(delta_work < 0) begin
+            shift_value_work = input_value_work;
+            bypass_value_work = acc_value_reg;
+            align_shift_work = $unsigned(-delta_work);
+            align_exp_work = eacc_exp_reg;
+        end
+        else begin
+            shift_value_work = acc_value_reg;
+            bypass_value_work = input_value_work;
+            align_shift_work = $unsigned(delta_work);
+            align_exp_work = blk_exp;
+        end
+
+        shift_mag_work = (shift_value_work[ACC_W-1])?
+                         $unsigned(-shift_value_work) :
+                         $unsigned(shift_value_work);
+        aligned_mag_work = shift_mag_work >> align_shift_work;
+        aligned_value_work = (shift_value_work[ACC_W-1])?
+                             -$signed({1'b0, aligned_mag_work}) :
+                             $signed({1'b0, aligned_mag_work});
+        bypass_value_ext_work = $signed({
+            bypass_value_work[ACC_W-1],
+            bypass_value_work
+        });
+        candidate_work = aligned_value_work + bypass_value_ext_work;
+        overflow_work = align_work
+                      && candidate_work[ACC_W] != candidate_work[ACC_W-1];
+
+        // ALIGN/SKIP mux followed by LOAD/REPLACE mux.
+        skip_mux_value_work = (align_work)?
+                              candidate_work[ACC_W-1:0] : acc_value_reg;
+        replace_mux_value_work = (load_work || replace_work)?
+                                 input_value_work : skip_mux_value_work;
+        replace_mux_exp_work = (load_work
+                                || replace_work
+                                || (align_work && delta_work >= 0))?
+                               blk_exp : eacc_exp_reg;
+        replace_mux_valid_work = eacc_valid_reg || load_work;
+
         final_mag_work = '0;
-        old_mag_aligned_work = '0;
-        new_mag_aligned_work = '0;
-        old_value_aligned_work = '0;
-        new_value_aligned_work = '0;
-        candidate_work = '0;
-        common_lsb_exp_work = blk_exp;
-        overflow_work = 1'b0;
-        new_msb_index_work = 0;
-        acc_msb_index_work = 0;
-        new_lead_exp_work = 0;
-        acc_lead_exp_work = 0;
-        delta_work = 0;
-        old_shift_work = 0;
-        new_shift_work = 0;
-
-        for(int i = 0; i < `BFP_MAG_W; i++) if(dp_mag[i]) new_msb_index_work = i;
-        for(int i = 0; i < ACC_W; i++) if(acc_mag_work[i]) acc_msb_index_work = i;
-
-        new_lead_exp_work = $signed(blk_exp) + new_msb_index_work;
-        acc_lead_exp_work = $signed(acc_lsb_exp_reg) + acc_msb_index_work;
-        delta_work = new_lead_exp_work - acc_lead_exp_work;
 
         if(input_fire) begin
-            if(dp_mag != 0) begin
-                if(!acc_valid_reg) begin
-                    acc_valid_next = 1'b1;
-                    acc_value_next = input_value_work;
-                    acc_lsb_exp_next = blk_exp;
-                end
-                else if(delta_work <= -T_SKIP) acc_valid_next = acc_valid_reg;
-                else if(delta_work >= T_REPLACE) begin
-                    acc_valid_next = 1'b1;
-                    acc_value_next = input_value_work;
-                    acc_lsb_exp_next = blk_exp;
-                end
-                else begin
-                    common_lsb_exp_work = ($signed(acc_lsb_exp_reg) >= $signed(blk_exp))?
-                                          acc_lsb_exp_reg : blk_exp;
-                    old_shift_work = $signed(common_lsb_exp_work) - $signed(acc_lsb_exp_reg);
-                    new_shift_work = $signed(common_lsb_exp_work) - $signed(blk_exp);
-                    old_mag_aligned_work = {1'b0, acc_mag_work} >> old_shift_work;
-                    new_mag_aligned_work =
-                        {{(ACC_W+1-`BFP_MAG_W){1'b0}}, dp_mag} >> new_shift_work;
-                    old_value_aligned_work = (acc_value_reg[ACC_W-1])?
-                                             -$signed(old_mag_aligned_work) :
-                                             $signed(old_mag_aligned_work);
-                    new_value_aligned_work = (dp_sign)?
-                                             -$signed(new_mag_aligned_work) :
-                                             $signed(new_mag_aligned_work);
-                    candidate_work = old_value_aligned_work + new_value_aligned_work;
-                    overflow_work = candidate_work[ACC_W] != candidate_work[ACC_W-1];
-                    if(overflow_work) begin
-                        spill_push_valid_work = 1'b1;
-                        spill_push_sign_work = candidate_work[ACC_W];
-                        spill_raw_mag_work = (candidate_work[ACC_W])?
-                                             $unsigned(-candidate_work) :
-                                             $unsigned(candidate_work);
-                        spill_raw_exp_work = common_lsb_exp_work;
-                        acc_valid_next = 1'b0;
-                        acc_value_next = '0;
-                        acc_lsb_exp_next = '0;
-                    end
-                    else begin
-                        acc_value_next = candidate_work[ACC_W-1:0];
-                        acc_lsb_exp_next = common_lsb_exp_work;
-                        acc_valid_next = candidate_work != 0;
-                    end
-                end
+            eacc_valid_next = replace_mux_valid_work;
+            eacc_exp_next = replace_mux_exp_work;
+            acc_value_next = replace_mux_value_work;
+
+            if(overflow_work) begin
+                spill_push_valid_work = 1'b1;
+                spill_push_sign_work = candidate_work[ACC_W];
+                spill_raw_mag_work = (candidate_work[ACC_W])?
+                                     $unsigned(-candidate_work) :
+                                     $unsigned(candidate_work);
+                spill_raw_exp_work = align_exp_work;
+                eacc_valid_next = 1'b0;
+                eacc_exp_next = '0;
+                acc_value_next = '0;
             end
 
             if(in_last) begin
                 if(spill_push_valid_work) spill_push_last_work = 1'b1;
-                else if(acc_valid_next) begin
+                else if(acc_value_next != 0) begin
                     final_mag_work = (acc_value_next[ACC_W-1])?
                                      $unsigned(-acc_value_next) :
                                      $unsigned(acc_value_next);
@@ -192,11 +206,11 @@ module DEW_ACC #(
                     spill_push_last_work = 1'b1;
                     spill_push_sign_work = acc_value_next[ACC_W-1];
                     spill_raw_mag_work = {1'b0, final_mag_work};
-                    spill_raw_exp_work = acc_lsb_exp_next;
+                    spill_raw_exp_work = eacc_exp_next;
                 end
-                acc_valid_next = 1'b0;
+                eacc_valid_next = 1'b0;
+                eacc_exp_next = '0;
                 acc_value_next = '0;
-                acc_lsb_exp_next = '0;
             end
         end
 
@@ -212,19 +226,19 @@ module DEW_ACC #(
     //=============================================================
     always_ff @(posedge clk or negedge rst_n) begin : ACC_STATE
         if(!rst_n) begin
-            acc_valid_reg <= 1'b0;
+            eacc_valid_reg <= 1'b0;
+            eacc_exp_reg <= '0;
             acc_value_reg <= '0;
-            acc_lsb_exp_reg <= '0;
         end
         else if(acc_clear) begin
-            acc_valid_reg <= 1'b0;
+            eacc_valid_reg <= 1'b0;
+            eacc_exp_reg <= '0;
             acc_value_reg <= '0;
-            acc_lsb_exp_reg <= '0;
         end
         else begin
-            acc_valid_reg <= acc_valid_next;
+            eacc_valid_reg <= eacc_valid_next;
+            eacc_exp_reg <= eacc_exp_next;
             acc_value_reg <= acc_value_next;
-            acc_lsb_exp_reg <= acc_lsb_exp_next;
         end
     end
 

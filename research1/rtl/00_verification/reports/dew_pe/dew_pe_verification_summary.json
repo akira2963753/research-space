@@ -10,14 +10,14 @@
   "p99_relative_error": 0.0,
   "max_absolute_error": 0.0,
   "ideal_quantized_dot_product_error": {
-    "max_relative_error": 4.2,
-    "mean_relative_error": 0.14356917757823254,
-    "median_relative_error": 0.04418027815553804
+    "max_relative_error": 5.266666666666667,
+    "mean_relative_error": 0.1393193200873712,
+    "median_relative_error": 0.04294069915588731
   },
   "dewa_events": {
-    "fp_terms": 23714,
-    "skips": 2174,
-    "replacements": 851,
+    "fp_terms": 23713,
+    "skips": 0,
+    "replacements": 6,
     "overflows": 0
   }
 }

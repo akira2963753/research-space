@@ -74,36 +74,18 @@ module DEW_PE #(
     //=============================================================
     //                    Outlier-Aware INT MAC
     //=============================================================
-    logic [`BFP_SIGN_BW-1:0] routed_w_sign_b, routed_a_sign_b;
-    logic [`BFP_MAN_BW-1:0] routed_w_man_b, routed_a_man_b;
-    logic outlier1_valid, outlier2_valid;
     logic normal_sign;
     logic [`BFP_MAG_W-1:0] normal_mag;
     logic outlier_sign;
     logic [`BFP_SPROD_W-1:0] outlier_mag;
 
-    Outlier_Dispatcher u_outlier_dispatcher (
+    INT_MAC u_int_mac (
         .w_sign_b(w_sign_reg),
         .a_sign_b(a_sign_b),
         .w_man_b(w_man_reg),
         .a_man_b(a_man_b),
         .oi1(oi1),
         .oi2(oi2),
-        .routed_w_sign_b(routed_w_sign_b),
-        .routed_a_sign_b(routed_a_sign_b),
-        .routed_w_man_b(routed_w_man_b),
-        .routed_a_man_b(routed_a_man_b),
-        .outlier1_valid(outlier1_valid),
-        .outlier2_valid(outlier2_valid)
-    );
-
-    INT_MAC u_int_mac (
-        .w_sign_b(routed_w_sign_b),
-        .a_sign_b(routed_a_sign_b),
-        .w_man_b(routed_w_man_b),
-        .a_man_b(routed_a_man_b),
-        .outlier1_valid(outlier1_valid),
-        .outlier2_valid(outlier2_valid),
         .normal_sign(normal_sign),
         .normal_mag(normal_mag),
         .outlier_sign(outlier_sign),
