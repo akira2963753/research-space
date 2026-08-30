@@ -20,11 +20,9 @@ module DEW_ACC #(
     input logic in_valid,
     output logic in_ready,
     input logic in_last,
-    input logic dp_sign,
-    input logic [`BFP_MAG_W-1:0] dp_mag,
+    input logic signed [`BFP_SUM_W-1:0] dp_value,
     input logic signed [`BFP_BEXP_W-1:0] blk_exp,
     output logic spill_valid,
-    input logic spill_ready,
     output logic spill_sign,
     output logic [`BFP_MAG_W-1:0] spill_mag,
     output logic signed [`BFP_BEXP_W-1:0] spill_exp,
@@ -90,8 +88,10 @@ module DEW_ACC #(
     logic signed [`BFP_BEXP_W:0] delta_work;
     logic [ALIGN_SHIFT_W-1:0] align_shift_work;
 
+    logic [`BFP_SUM_W-1:0] dp_abs_work;
     logic signed [ACC_W-1:0] input_value_work;
-    logic signed [ACC_W-1:0] shift_value_work, bypass_value_work;
+    logic shift_sign_work;
+    logic signed [ACC_W-1:0] bypass_value_work;
     logic [ACC_W-1:0] shift_mag_work, aligned_mag_work;
     logic signed [ACC_W:0] aligned_value_work, bypass_value_ext_work;
     logic signed [ACC_W:0] candidate_work;
@@ -119,7 +119,7 @@ module DEW_ACC #(
         spill_raw_mag_work = '0;
         spill_raw_exp_work = '0;
 
-        dp_nonzero_work = dp_mag != 0;
+        dp_nonzero_work = dp_value != 0;
         delta_work = $signed({blk_exp[`BFP_BEXP_W-1], blk_exp})
                      - $signed({eacc_exp_reg[`BFP_BEXP_W-1], eacc_exp_reg});
         load_work = dp_nonzero_work && !eacc_valid_reg;
@@ -134,28 +134,40 @@ module DEW_ACC #(
                    && !skip_work
                    && !replace_work;
 
-        input_value_work = $signed({{(ACC_W-`BFP_SUM_W){1'b0}}, 1'b0, dp_mag});
-        if(dp_sign) input_value_work = -input_value_work;
+        dp_abs_work = (dp_value[`BFP_SUM_W-1])?
+                      $unsigned(-dp_value) : $unsigned(dp_value);
+        input_value_work = $signed({
+            {(ACC_W-`BFP_SUM_W){dp_value[`BFP_SUM_W-1]}},
+            dp_value
+        });
 
-        // Smaller-exponent operand uses the shared shifter; the other bypasses.
-        if(delta_work < 0) begin
-            shift_value_work = input_value_work;
-            bypass_value_work = acc_value_reg;
-            align_shift_work = $unsigned(-delta_work);
-            align_exp_work = eacc_exp_reg;
-        end
-        else begin
-            shift_value_work = acc_value_reg;
-            bypass_value_work = input_value_work;
-            align_shift_work = $unsigned(delta_work);
-            align_exp_work = blk_exp;
+        // Only the smaller-exponent operand uses the shared shifter.
+        shift_sign_work = 1'b0;
+        shift_mag_work = '0;
+        bypass_value_work = '0;
+        align_shift_work = '0;
+        align_exp_work = eacc_exp_reg;
+        if(align_work) begin
+            if(delta_work < 0) begin
+                shift_sign_work = dp_value[`BFP_SUM_W-1];
+                shift_mag_work = {{(ACC_W-`BFP_SUM_W){1'b0}}, dp_abs_work};
+                bypass_value_work = acc_value_reg;
+                align_shift_work = $unsigned(-delta_work);
+                align_exp_work = eacc_exp_reg;
+            end
+            else begin
+                shift_sign_work = acc_value_reg[ACC_W-1];
+                shift_mag_work = (acc_value_reg[ACC_W-1])?
+                                 $unsigned(-acc_value_reg) :
+                                 $unsigned(acc_value_reg);
+                bypass_value_work = input_value_work;
+                align_shift_work = $unsigned(delta_work);
+                align_exp_work = blk_exp;
+            end
         end
 
-        shift_mag_work = (shift_value_work[ACC_W-1])?
-                         $unsigned(-shift_value_work) :
-                         $unsigned(shift_value_work);
         aligned_mag_work = shift_mag_work >> align_shift_work;
-        aligned_value_work = (shift_value_work[ACC_W-1])?
+        aligned_value_work = (shift_sign_work)?
                              -$signed({1'b0, aligned_mag_work}) :
                              $signed({1'b0, aligned_mag_work});
         bypass_value_ext_work = $signed({
@@ -219,7 +231,7 @@ module DEW_ACC #(
     end
 
     assign done = (input_fire && in_last && !spill_push_valid_work) ||
-                  (spill_valid_reg && spill_ready && spill_last_reg);
+                  (spill_valid_reg && spill_last_reg);
 
     //=============================================================
     //                     Sequential State
@@ -258,13 +270,9 @@ module DEW_ACC #(
             spill_exp_reg <= '0;
         end
         else begin
-            if(spill_valid_reg && spill_ready) begin
-                spill_valid_reg <= 1'b0;
-                spill_last_reg <= 1'b0;
-            end
+            spill_valid_reg <= spill_push_valid_work;
+            spill_last_reg <= spill_push_last_work;
             if(spill_push_valid_work) begin
-                spill_valid_reg <= 1'b1;
-                spill_last_reg <= spill_push_last_work;
                 spill_sign_reg <= spill_push_sign_work;
                 spill_mag_reg <= spill_push_mag_work;
                 spill_exp_reg <= spill_push_exp_work;
