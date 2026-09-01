@@ -1,3 +1,11 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
+This paper presented a co-design of data format and accumulation strategy for efficient low-bit BFP inference of large language models.
+Dynamic Exponent-Window Accumulation (DEWA) introduces a lightweight integer accumulator that absorbs the majority of inter-block partial sums within a narrow exponent window, forwarding only out-of-window events to the floating-point accumulator.
+Top-2 Activation-only Bi-Exponent encoding (T2A-BiE) complements DEWA by separating up to two outlier lanes per activation block with a second shared exponent, preventing outliers from shifting the accumulation window while incurring less storage and control overhead than full bi-exponent schemes.
+
+Experiments on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B show that the combined W-BFP4 / T2A-BiE4 configuration preserves model accuracy relative to strong baselines.
+Synthesis results in TSMC 90\,nm confirm that the proposed PE is both smaller and more energy-efficient than a conventional BFP baseline and a Bucket Getter PE.
+
+Future work includes extending the evaluation to larger models and additional tasks beyond language modeling, exploring adaptive window parameters that vary across layers, and integrating the proposed PE into a full systolic-array accelerator to assess system-level throughput and energy.
