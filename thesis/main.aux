@@ -3,12 +3,12 @@
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \citation{msfp2020,fast2022}
-\citation{bucketgetter2023,winacc2025,smartblock2025}
+\citation{bucketgetter2023,winacc2025,smartblock2025,mgs2025}
 \citation{bucketgetter2023,winacc2025,smartblock2025}
 \citation{bie2024,oiso2026,bbal2025,harmonia2026}
 \citation{bie2024,oiso2026}
-\citation{smoothquant2023,olive2023,gobo2020}
-\citation{msfp2020,fast2022}
+\citation{smoothquant2023,olive2023,gobo2020,billm2024}
+\citation{msfp2020,fast2022,anda2025}
 \@writefile{toc}{\contentsline {section}{Abstract}{1}{section*.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \newlabel{sec:introduction}{{1}{1}{Introduction}{section.1}{}}
@@ -22,41 +22,58 @@
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Block-level data formats. (a) Conventional BFP with one shared exponent per block. (b) Bi-exponent BFP (BiE), which adds an outlier exponent and spends a type bit on every element. (c) The proposed Top-2 Activation-only Bi-Exponent BFP (T2A-BiE), which keeps both exponents but replaces the per-element type bits with two outlier indices, so the storage and MAC overhead is lower than that of BiE; weights remain single-exponent BFP as in (a).}}{2}{figure.caption.5}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{fig:data_format}{{1}{2}{Block-level data formats. (a) Conventional BFP with one shared exponent per block. (b) Bi-exponent BFP (BiE), which adds an outlier exponent and spends a type bit on every element. (c) The proposed Top-2 Activation-only Bi-Exponent BFP (T2A-BiE), which keeps both exponents but replaces the per-element type bits with two outlier indices, so the storage and MAC overhead is lower than that of BiE; weights remain single-exponent BFP as in (a)}{figure.caption.5}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Component-level power and area of a synthesized baseline BFP-PE. Power is measured under LLaMA2-7B's real activation distribution.}}{2}{figure.caption.6}\protected@file@percent }
-\newlabel{fig:bfp_pe_ppa}{{2}{2}{Component-level power and area of a synthesized baseline BFP-PE. Power is measured under LLaMA2-7B's real activation distribution}{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Component-level power and area of a synthesized baseline BFP-PE (TSMC 90\,nm, 100\,MHz). Power is measured under LLaMA2-7B's real activation distribution.}}{2}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:bfp_pe_ppa}{{2}{2}{Component-level power and area of a synthesized baseline BFP-PE (TSMC 90\,nm, 100\,MHz). Power is measured under LLaMA2-7B's real activation distribution}{figure.caption.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces WikiText-2 $\Delta $PPL of vanilla BFP versus FP16 as the mantissa width decreases (group size 16).}}{2}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:vanilla_bfp_delta_ppl}{{3}{2}{WikiText-2 $\Delta $PPL of vanilla BFP versus FP16 as the mantissa width decreases (group size 16)}{figure.caption.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Deployment Challenges}{2}{subsection.2.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces WikiText-2 $\Delta $PPL of vanilla BFP versus FP16 as the mantissa width decreases (group size 16).}}{2}{figure.caption.7}\protected@file@percent }
-\newlabel{fig:vanilla_bfp_delta_ppl}{{3}{2}{WikiText-2 $\Delta $PPL of vanilla BFP versus FP16 as the mantissa width decreases (group size 16)}{figure.caption.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Bi-Exponent BFP for Outlier Separation}{2}{subsection.2.3}\protected@file@percent }
 \newlabel{subsec:bie}{{2.3}{2}{Bi-Exponent BFP for Outlier Separation}{subsection.2.3}{}}
 \citation{bucketgetter2023,winacc2025}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces BFP4 partial-sum exponent distributions on three LLaMA2-7B layers (group size 16). The shaded band is the observed full span.}}{3}{figure.caption.8}\protected@file@percent }
-\newlabel{fig:bfp4_exponent_dist}{{4}{3}{BFP4 partial-sum exponent distributions on three LLaMA2-7B layers (group size 16). The shaded band is the observed full span}{figure.caption.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces BFP4 partial-sum exponent distributions on three LLaMA2-7B layers (group size 16). The shaded band is the observed full span.}}{3}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:bfp4_exponent_dist}{{4}{3}{BFP4 partial-sum exponent distributions on three LLaMA2-7B layers (group size 16). The shaded band is the observed full span}{figure.caption.6}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {3}Proposed Method}{3}{section.3}\protected@file@percent }
 \newlabel{sec:design}{{3}{3}{Proposed Method}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Dynamic Exponent-Window Accumulation}{3}{subsection.3.1}\protected@file@percent }
 \newlabel{eq:window}{{1}{3}{Dynamic Exponent-Window Accumulation}{equation.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Outlier occupancy per G16 activation block (W-BFP4/A-BiE4, LLaMA2-7B).}}{3}{table.caption.7}\protected@file@percent }
+\newlabel{tab:outlier_count}{{1}{3}{Outlier occupancy per G16 activation block (W-BFP4/A-BiE4, LLaMA2-7B)}{table.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces WikiText-2 $\Delta $PPL versus FP16 on LLaMA2-7B (G16). T2A-BiE stays close to full BiE and activation-only BiE.}}{3}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:ppl_delta_comparison}{{5}{3}{WikiText-2 $\Delta $PPL versus FP16 on LLaMA2-7B (G16). T2A-BiE stays close to full BiE and activation-only BiE}{figure.caption.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Activation Top-2 Selection}{3}{subsection.3.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Outlier occupancy per G16 activation block (W-BFP4/A-BiE4, LLaMA2-7B).}}{3}{table.caption.9}\protected@file@percent }
-\newlabel{tab:outlier_count}{{1}{3}{Outlier occupancy per G16 activation block (W-BFP4/A-BiE4, LLaMA2-7B)}{table.caption.9}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces WikiText-2 $\Delta $PPL versus FP16 (G16). T2A-BiE stays close to full BiE and activation-only BiE.}}{3}{figure.caption.10}\protected@file@percent }
-\newlabel{fig:ppl_delta_comparison}{{5}{3}{WikiText-2 $\Delta $PPL versus FP16 (G16). T2A-BiE stays close to full BiE and activation-only BiE}{figure.caption.10}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Hybrid Top-2 DEWA}{3}{subsection.3.3}\protected@file@percent }
 \newlabel{subsec:hybrid}{{3.3}{3}{Hybrid Top-2 DEWA}{subsection.3.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces WikiText-2 $\Delta $PPL of Hybrid Top-2 DEWA versus T2A-BiE (G16) on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B. The best $(T_{\mathrm  {drop}}, T_{\mathrm  {replace}})$ pair varies by model; the hardware analysis uses $(9,3)$.}}{4}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:hybrid_delta_ppl}{{6}{4}{WikiText-2 $\Delta $PPL of Hybrid Top-2 DEWA versus T2A-BiE (G16) on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B. The best $(T_{\mathrm {drop}}, T_{\mathrm {replace}})$ pair varies by model; the hardware analysis uses $(9,3)$}{figure.caption.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Hardware Architecture}{4}{section.4}\protected@file@percent }
+\newlabel{sec:architecture}{{4}{4}{Hardware Architecture}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Top-2 Activation BiE Index Encoding}{4}{subsection.4.1}\protected@file@percent }
+\newlabel{subsec:t2a_encode}{{4.1}{4}{Top-2 Activation BiE Index Encoding}{subsection.4.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Top-2 outlier-index encoding for a G16 activation block.}}{4}{table.caption.10}\protected@file@percent }
+\newlabel{tab:oi_encode}{{2}{4}{Top-2 outlier-index encoding for a G16 activation block}{table.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}DEW-Based PE}{4}{subsection.4.2}\protected@file@percent }
+\newlabel{subsec:dew_pe}{{4.2}{4}{DEW-Based PE}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Outlier Dispatcher and Adder Tree}{4}{subsection.4.3}\protected@file@percent }
+\newlabel{subsec:adder_tree}{{4.3}{4}{Outlier Dispatcher and Adder Tree}{subsection.4.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}DEW Accumulator}{4}{subsection.4.4}\protected@file@percent }
+\newlabel{subsec:dew_acc}{{4.4}{4}{DEW Accumulator}{subsection.4.4}{}}
 \bibstyle{ACM-Reference-Format}
 \bibdata{references}
-\bibcite{olive2023}{{1}{2023}{{Guo et~al\mbox  {.}}}{{}}}
-\bibcite{bbal2025}{{2}{2025}{{Han et~al\mbox  {.}}}{{}}}
-\bibcite{smartblock2025}{{3}{2025a}{{Ju et~al\mbox  {.}}}{{}}}
-\bibcite{winacc2025}{{4}{2025b}{{Ju et~al\mbox  {.}}}{{}}}
-\bibcite{bucketgetter2023}{{5}{2023}{{Lo and Liu}}{{}}}
-\bibcite{msfp2020}{{6}{2020}{{Rouhani et~al\mbox  {.}}}{{}}}
-\bibcite{harmonia2026}{{7}{2026}{{Wang et~al\mbox  {.}}}{{}}}
-\bibcite{smoothquant2023}{{8}{2023}{{Xiao et~al\mbox  {.}}}{{}}}
-\bibcite{gobo2020}{{9}{2020}{{Zadeh et~al\mbox  {.}}}{{}}}
-\bibcite{fast2022}{{10}{2022}{{Zhang et~al\mbox  {.}}}{{}}}
-\bibcite{oiso2026}{{11}{2026}{{Zou et~al\mbox  {.}}}{{}}}
-\bibcite{bie2024}{{12}{2024}{{Zou et~al\mbox  {.}}}{{}}}
+\bibcite{anda2025}{{1}{2025}{{Fang et~al\mbox  {.}}}{{}}}
+\bibcite{olive2023}{{2}{2023}{{Guo et~al\mbox  {.}}}{{}}}
+\bibcite{bbal2025}{{3}{2025}{{Han et~al\mbox  {.}}}{{}}}
+\bibcite{billm2024}{{4}{2024}{{Huang et~al\mbox  {.}}}{{}}}
+\bibcite{smartblock2025}{{5}{2025a}{{Ju et~al\mbox  {.}}}{{}}}
+\bibcite{winacc2025}{{6}{2025b}{{Ju et~al\mbox  {.}}}{{}}}
+\bibcite{bucketgetter2023}{{7}{2023}{{Lo and Liu}}{{}}}
+\bibcite{mgs2025}{{8}{2025}{{Natesh et~al\mbox  {.}}}{{}}}
+\bibcite{msfp2020}{{9}{2020}{{Rouhani et~al\mbox  {.}}}{{}}}
+\bibcite{harmonia2026}{{10}{2026}{{Wang et~al\mbox  {.}}}{{}}}
+\bibcite{smoothquant2023}{{11}{2023}{{Xiao et~al\mbox  {.}}}{{}}}
+\bibcite{gobo2020}{{12}{2020}{{Zadeh et~al\mbox  {.}}}{{}}}
+\bibcite{fast2022}{{13}{2022}{{Zhang et~al\mbox  {.}}}{{}}}
+\bibcite{oiso2026}{{14}{2026}{{Zou et~al\mbox  {.}}}{{}}}
+\bibcite{bie2024}{{15}{2024}{{Zou et~al\mbox  {.}}}{{}}}
 \newlabel{tocindent-1}{0pt}
 \newlabel{tocindent0}{0pt}
 \newlabel{tocindent1}{4.185pt}
@@ -64,16 +81,12 @@
 \newlabel{tocindent3}{0pt}
 \newlabel{tocindent4}{0pt}
 \newlabel{tocindent5}{0pt}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces WikiText-2 $\Delta $PPL of Hybrid Top-2 DEWA versus T2A-BiE4 (G16) on a representative $(T_{\mathrm  {drop}}, T_{\mathrm  {replace}})$ slice. $(9,3)$ is the selected design point.}}{4}{figure.caption.11}\protected@file@percent }
-\newlabel{fig:hybrid_delta_ppl}{{6}{4}{WikiText-2 $\Delta $PPL of Hybrid Top-2 DEWA versus T2A-BiE4 (G16) on a representative $(T_{\mathrm {drop}}, T_{\mathrm {replace}})$ slice. $(9,3)$ is the selected design point}{figure.caption.11}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Hardware Architecture}{4}{section.4}\protected@file@percent }
-\newlabel{sec:architecture}{{4}{4}{Hardware Architecture}{section.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). Outlier indices dispatch each block onto a normal DEWA path and up to two outlier lanes that share one FP-Acc.}}{4}{figure.caption.12}\protected@file@percent }
-\newlabel{fig:architecture}{{7}{4}{Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). Outlier indices dispatch each block onto a normal DEWA path and up to two outlier lanes that share one FP-Acc}{figure.caption.12}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Evaluation}{4}{section.5}\protected@file@percent }
-\newlabel{sec:evaluation}{{5}{4}{Evaluation}{section.5}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{4}{section.6}\protected@file@percent }
-\newlabel{sec:conclusion}{{6}{4}{Conclusion}{section.6}{}}
-\@writefile{toc}{\contentsline {section}{References}{4}{section*.14}\protected@file@percent }
-\newlabel{TotPages}{{4}{4}{}{page.4}{}}
-\gdef \@abspage@last{4}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). (a) Overall PE, where the outlier indices split each block into a normal DEWA path and up to two outlier lanes that share one FP-Acc. (b) Outlier dispatcher and the reconfigurable last node of the first adder-tree level. (c) DEW accumulator with its single shifter and exponent register.}}{5}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:architecture}{{7}{5}{Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). (a) Overall PE, where the outlier indices split each block into a normal DEWA path and up to two outlier lanes that share one FP-Acc. (b) Outlier dispatcher and the reconfigurable last node of the first adder-tree level. (c) DEW accumulator with its single shifter and exponent register}{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Evaluation}{5}{section.5}\protected@file@percent }
+\newlabel{sec:evaluation}{{5}{5}{Evaluation}{section.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{5}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{6}{5}{Conclusion}{section.6}{}}
+\@writefile{toc}{\contentsline {section}{References}{5}{section*.13}\protected@file@percent }
+\newlabel{TotPages}{{5}{5}{}{page.5}{}}
+\gdef \@abspage@last{5}

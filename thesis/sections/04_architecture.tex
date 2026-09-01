@@ -1,20 +1,78 @@
 \section{Hardware Architecture}
 \label{sec:architecture}
 
-Fig.~\ref{fig:architecture} shows the BFP-PE that implements W-BFP4 / T2A-BiE4 at group size 16.
-Weights remain single-exponent BFP.
-Each activation block arrives with two outlier indices instead of per-element type bits.
-An outlier-index encoder and dispatcher then split the 16 lanes into a normal path and at most two outlier lanes.
+\subsection{Top-2 Activation BiE Index Encoding}
+\label{subsec:t2a_encode}
+T2A-BiE keeps two shared exponents per activation block, $E_{\mathrm{a}}^{\mathrm{(n)}}$ for normal values and $E_{\mathrm{a}}^{\mathrm{(o)}}$ for outliers, while weights stay in single-exponent BFP.
+Instead of a type bit on every element, two outlier indices name the lanes that use $E_{\mathrm{a}}^{\mathrm{(o)}}$ (Fig.~\ref{fig:data_format}(c)).
+Each index is 4 bits at group size 16, so a block carries 8 index bits rather than 16 type bits.
+The pair $(\mathrm{OI}_1,\mathrm{OI}_2)$ encodes how many outliers a block holds and where they are, so no separate count field is needed (Table~\ref{tab:oi_encode}).
 
-Normal lanes feed an integer adder tree, and the tree output updates the DEWA accumulator of Section~\ref{sec:design} under $(T_{\mathrm{drop}}, T_{\mathrm{replace}})=(9,3)$.
-Each occupied outlier lane has its own adder-tree output and is sent directly to a shared FP-Acc; the exception path does not compare exponents.
-If a block has fewer than two outliers, a reserved index marks the unused slot and that lane contributes a zero partial.
-
-The FP-Acc is therefore shared by the encoded outlier lanes and by DEWA results that leave the integer window, rather than by every inter-block partial sum.
-
-\begin{figure}[h]
+\begin{table}[H]
     \centering
-    \includegraphics[width=\linewidth]{figures/architecture.pdf}
-    \caption{Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). Outlier indices dispatch each block onto a normal DEWA path and up to two outlier lanes that share one FP-Acc.}
+    \caption{Top-2 outlier-index encoding for a G16 activation block.}
+    \label{tab:oi_encode}
+    \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}ccc}
+        \toprule
+        Outliers per block & $\mathrm{OI}_1$ & $\mathrm{OI}_2$ \\
+        \midrule
+        0 & 15 (reserved) & 15 (reserved) \\
+        1 & lane index $i$ & 0 (unused) \\
+        2 & lane index $i_1$ & lane index $i_2$ \\
+        \bottomrule
+    \end{tabular*}
+\end{table}
+
+The pair $(15,15)$ is reserved for an empty block, so a single outlier on lane 15 is stored as $(15,0)$.
+Since $\mathrm{OI}_2=0$ already marks the second slot as unused, the encoder never writes lane 0 into $\mathrm{OI}_2$; a lane-0 outlier always occupies $\mathrm{OI}_1$, and two outliers keep $i_1 \neq i_2$.
+Decoding then costs two comparisons: whether both indices are all ones, and whether $\mathrm{OI}_2$ is nonzero.
+
+Because weights carry a single exponent, every product in a block lands on one of two exponent pairs, $E_{\mathrm{w}}+E_{\mathrm{a}}^{\mathrm{(n)}}$ or $E_{\mathrm{w}}+E_{\mathrm{a}}^{\mathrm{(o)}}$, rather than the four cases of full BiE.
+The PE therefore never decodes a per-element type bit; it only moves the lanes named by $\mathrm{OI}_1$ and $\mathrm{OI}_2$ to fixed outlier positions, which is what the dispatcher of Section~\ref{subsec:adder_tree} implements.
+
+\subsection{DEW-Based PE}
+\label{subsec:dew_pe}
+The PE takes one weight block and one activation block, the latter carrying the two outlier indices of Section~\ref{subsec:t2a_encode}.
+All 16 lanes are multiplied in fixed point, and the indices then split the results into two paths: the normal lanes enter an adder tree that reduces them to one partial sum per block, while each named outlier lane stays separate and never joins the tree.
+
+The normal partial sum goes to the DEW accumulator, which accumulates in the integer domain inside the exponent window of Eq.~\eqref{eq:window}; only results that fall outside the window spill to the FP-Acc.
+An outlier partial sum carries the other shared exponent and is therefore sent straight to the FP-Acc.
+Each path travels with its own block exponent, $E_{\mathrm{w}}+E_{\mathrm{a}}^{\mathrm{(n)}}$ or $E_{\mathrm{w}}+E_{\mathrm{a}}^{\mathrm{(o)}}$, and the two merge in a single FP-Acc that produces the output (Fig.~\ref{fig:architecture}(a)).
+The FP-Acc thus handles only outliers and the few out-of-window updates instead of every inter-block partial sum.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/architecture.pdf}
+    \caption{Proposed BFP-PE for W-BFP4 / T2A-BiE4 (group size 16). (a) Overall PE, where the outlier indices split each block into a normal DEWA path and up to two outlier lanes that share one FP-Acc. (b) Outlier dispatcher and the reconfigurable last node of the first adder-tree level. (c) DEW accumulator with its single shifter and exponent register.}
     \label{fig:architecture}
-\end{figure}
+\end{figure*}
+
+\subsection{Outlier Dispatcher and Adder Tree}
+\label{subsec:adder_tree}
+Handling an outlier where it sits would require every node of the adder tree to be bypassable, which is expensive to control.
+We move the data instead: guided by $\mathrm{OI}_1$ and $\mathrm{OI}_2$, a dispatcher exchanges the two outlier lanes with lanes 15 and 14 and leaves the remaining lanes in place (Fig.~\ref{fig:architecture}(b)).
+After the exchange the outliers always occupy the same two positions, so no downstream logic has to read the indices again.
+This is a pairwise swap rather than a full crossbar, costing one small multiplexer per lane.
+
+The first level of the 16-lane adder tree has eight nodes.
+Seven of them always add a fixed pair of adjacent lanes; the eighth covers lanes 14 and 15, the positions the outliers were moved to, and changes role with the outlier count:
+\begin{itemize}
+    \item With no outlier it adds lanes 14 and 15 as usual, and the tree behaves like that of a conventional BFP-PE.
+    \item With one outlier it passes only lane 14 into the tree, while the product on lane 15 leaves as the outlier partial sum.
+    \item With two outliers it adds lanes 14 and 15, and the result bypasses the tree and goes to the FP-Acc.
+\end{itemize}
+One adder therefore serves all three cases, and no separate adder is spent on outliers.
+
+\subsection{DEW Accumulator}
+\label{subsec:dew_acc}
+The accumulator holds two pieces of state: one integer accumulator and the exponent $E_{\mathrm{acc}}$ it currently refers to (Fig.~\ref{fig:architecture}(c)).
+Each arriving partial sum is compared against $E_{\mathrm{acc}}$, and the exponent difference decides whether Eq.~\eqref{eq:window} drops, replaces, or accumulates it.
+The three outcomes are three inputs of the same multiplexer, so they do not need separate datapaths.
+
+Only the accumulate case needs alignment.
+The operand with the smaller exponent is the one shifted right, while the other bypasses the shifter and enters the adder directly, and the accumulator adopts the larger exponent.
+A single shifter therefore serves the whole accumulator, with the sign of the exponent difference selecting whether it acts on the incoming partial sum or on the stored value.
+
+Two events hand a result to the FP-Acc: the integer accumulator overflowing, and the flush at the end of a dot product.
+On an overflow the accumulator is cleared and restarts from the next partial sum.
+The number of FP-Acc requests therefore follows the number of overflows rather than the number of blocks, which is where the reduction in FP-Acc utilization comes from.

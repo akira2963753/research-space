@@ -67,7 +67,7 @@ Activation-only BiE and Top-2 capping have negligible impact on LLaMA2-7B perple
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.9\linewidth]{figures/ppl_delta_comparison.pdf}
-    \caption{WikiText-2 $\Delta$PPL versus FP16 (G16). T2A-BiE stays close to full BiE and activation-only BiE.}
+    \caption{WikiText-2 $\Delta$PPL versus FP16 on LLaMA2-7B (G16). T2A-BiE stays close to full BiE and activation-only BiE.}
     \label{fig:ppl_delta_comparison}
 \end{figure}
 
@@ -78,16 +78,18 @@ We apply the two together and call the result \textbf{Hybrid Top-2 DEWA}: W-BFP4
 
 A full 2-D sweep over every $(T_{\mathrm{drop}}, T_{\mathrm{replace}})$ pair is more than we need to pick a design point.
 Fig.~\ref{fig:hybrid_delta_ppl} shows a representative slice: the symmetric corners $(8,8)$ and $(10,10)$, and a $T_{\mathrm{drop}}=9$ cut with $T_{\mathrm{replace}}$ from 9 down to 2.
-Along this cut, $\Delta$PPL from the T2A-BiE4 baseline stays near 0.01 down to $(9,3)$ and then rises at $(9,2)$; $(8,8)$ is also worse.
+The best pair is not the same on every model.
+LLaMA2-7B and LLaMA-3.1-8B stay close to T2A-BiE from $(9,9)$ down to $(9,3)$ and rise at $(9,2)$; both get worse at $(8,8)$, LLaMA-3.1-8B by a large margin.
+OPT-6.7B is lowest at $(8,8)$, where Hybrid Top-2 DEWA falls below T2A-BiE.
 
 Reducing $T_{\mathrm{replace}}$ shortens the integer window and cuts the dynamic range of the low-cost accumulator, which saves area.
-$(9,3)$ is the smallest $T_{\mathrm{replace}}$ on this slice that remains on the accuracy plateau, so we take it as the design point that trades accumulator area against WikiText-2 loss.
-Section~\ref{sec:architecture} implements the hybrid PE at $(T_{\mathrm{drop}}, T_{\mathrm{replace}})=(9,3)$.
+This paper still uses one pair, $(9,3)$, for the hardware-cost analysis.
+It is the smallest $T_{\mathrm{replace}}$ on the $T_{\mathrm{drop}}=9$ cut that all three models keep near T2A-BiE, and Section~\ref{sec:architecture} implements the hybrid PE at $(T_{\mathrm{drop}}, T_{\mathrm{replace}})=(9,3)$.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\linewidth]{figures/hybrid_tskip_treplace_delta_ppl.pdf}
-    \caption{WikiText-2 $\Delta$PPL of Hybrid Top-2 DEWA versus T2A-BiE4 (G16) on a representative $(T_{\mathrm{drop}}, T_{\mathrm{replace}})$ slice. $(9,3)$ is the selected design point.}
+    \caption{WikiText-2 $\Delta$PPL of Hybrid Top-2 DEWA versus T2A-BiE (G16) on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B. The best $(T_{\mathrm{drop}}, T_{\mathrm{replace}})$ pair varies by model; the hardware analysis uses $(9,3)$.}
     \label{fig:hybrid_delta_ppl}
 \end{figure}
 

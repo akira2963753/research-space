@@ -2,7 +2,7 @@
 %%% Do NOT edit. File created by BibTeX with style
 %%% ACM-Reference-Format-Journals [18-Jan-2012].
 
-\begin{thebibliography}{12}
+\begin{thebibliography}{15}
 
 %%% ====================================================================
 %%% NOTE TO THE USER: you can override these defaults by providing
@@ -36,6 +36,19 @@
 \providecommand\natexlab[1]{#1}
 \providecommand\showeprint[2][]{arXiv:#2}
 
+\bibitem[Fang et~al\mbox{.}(2025)]%
+        {anda2025}
+\bibfield{author}{\bibinfo{person}{C. Fang}, \bibinfo{person}{M. Shi},
+  \bibinfo{person}{R. Geens}, \bibinfo{person}{A. Symons}, \bibinfo{person}{Z.
+  Wang}, {and} \bibinfo{person}{M. Verhelst}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{{Anda}: Unlocking Efficient {LLM} Inference with a
+  Variable-Length Grouped Activation Data Format}. In
+  \bibinfo{booktitle}{\emph{Proc. IEEE Int. Symp. High-Performance Computer
+  Architecture (HPCA)}}. \bibinfo{pages}{1467--1481}.
+\newblock
+\href{https://doi.org/10.1109/HPCA61900.2025.00110}{doi:\nolinkurl{10.1109/HPCA61900.2025.00110}}
+
+
 \bibitem[Guo et~al\mbox{.}(2023)]%
         {olive2023}
 \bibfield{author}{\bibinfo{person}{C. Guo} {et~al\mbox{.}}}
@@ -56,6 +69,17 @@
   Quantisation Accelerator for Large Language Models}. In
   \bibinfo{booktitle}{\emph{Proc. 62nd ACM/IEEE Design Automation Conf.
   (DAC)}}. \bibinfo{pages}{1--7}.
+\newblock
+
+
+\bibitem[Huang et~al\mbox{.}(2024)]%
+        {billm2024}
+\bibfield{author}{\bibinfo{person}{W. Huang} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{{BiLLM}: Pushing the Limit of Post-Training
+  Quantization for {LLMs}}. In \bibinfo{booktitle}{\emph{Proc. 41st Int. Conf.
+  Machine Learning (ICML)}} \emph{(\bibinfo{series}{PMLR},
+  Vol.~\bibinfo{volume}{235})}. \bibinfo{pages}{20023--20042}.
 \newblock
 
 
@@ -92,6 +116,18 @@
   (MICRO)}}. \bibinfo{pages}{1002--1015}.
 \newblock
 \href{https://doi.org/10.1145/3613424.3614249}{doi:\nolinkurl{10.1145/3613424.3614249}}
+
+
+\bibitem[Natesh et~al\mbox{.}(2025)]%
+        {mgs2025}
+\bibfield{author}{\bibinfo{person}{V. Natesh}, \bibinfo{person}{H.~T. Kung},
+  {and} \bibinfo{person}{D. Kong}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{{MGS}: Markov Greedy Sums for Accurate Low-Bitwidth
+  Floating-Point Accumulation}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2504.09072}}
+  (\bibinfo{year}{2025}).
+\newblock
+\href{https://doi.org/10.48550/arXiv.2504.09072}{doi:\nolinkurl{10.48550/arXiv.2504.09072}}
 
 
 \bibitem[Rouhani et~al\mbox{.}(2020)]%
