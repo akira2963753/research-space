@@ -13,7 +13,7 @@ RTL_ROOT = PLOT_DIR.parents[1] / "rtl"
 FIGURE_STEM = PLOT_DIR / "figures" / "pe_area_energy_comparison"
 
 BASELINE_REPORT = RTL_ROOT / "01_Baseline-BFP-PE" / "BFP4" / "02_SYN" / "Report"
-BUCKET_REPORT = RTL_ROOT / "02_Bucket-Getter-PE" / "Report"
+BUCKET_REPORT = RTL_ROOT / "02_Bucket-Getter-PE" / "02_SYN" / "Report"
 OURS_AREA_REPORT = RTL_ROOT / "03_DEW-PE" / "02_SYN" / "Sweep_Report" / "W13" / "area.rpt"
 OURS_POWER_REPORT = RTL_ROOT / "03_DEW-PE" / "02_SYN" / "Report" / "power.rpt"
 
@@ -25,7 +25,7 @@ DESIGNS = (
 
 AREA_RE = re.compile(r"^Total cell area:\s+([0-9.]+)", re.MULTILINE)
 POWER_RE = re.compile(
-    r"^Total\s+[0-9.]+ mW\s+[0-9.]+ mW\s+[0-9.eE+-]+ pW\s+([0-9.]+) mW",
+    r"^Total\s+[0-9.eE+-]+ mW\s+[0-9.eE+-]+ mW\s+[0-9.eE+-]+ pW\s+([0-9.eE+-]+) mW",
     re.MULTILINE,
 )
 # Light fills from plot/05_pe-power-area; dark solids look too heavy as full bars.
@@ -119,8 +119,9 @@ def plot_comparison() -> None:
 
     configure_ieee_style()
     fig, ax = plt.subplots(figsize=(3.55, 2.15))
-    x = np.arange(len(labels), dtype=np.float64)
-    bar_width = 0.32
+    bar_width = 0.20
+    group_gap = 0.70
+    x = np.arange(len(labels), dtype=np.float64) * group_gap
 
     area_bars = ax.bar(
         x - bar_width / 2.0,
@@ -162,6 +163,7 @@ def plot_comparison() -> None:
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, color=TEXT_COLOR)
+    ax.set_xlim(x[0] - bar_width - 0.12, x[-1] + bar_width + 0.12)
     ax.set_ylabel("Normalized", color=TEXT_COLOR)
     ax.set_ylim(0.0, max(area_norm.max(), energy_norm.max()) * 1.18)
     ax.yaxis.set_major_locator(MultipleLocator(0.2))

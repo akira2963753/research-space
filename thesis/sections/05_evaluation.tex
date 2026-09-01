@@ -23,15 +23,15 @@ W13 is the better choice: overflow activity drops sharply while PE area barely g
 
 \subsection{Hardware and Energy Comparison}
 \label{subsec:hw_energy}
-We compare three synthesized PEs in TSMC 90\,nm at 100\,MHz: a conventional BFP4 baseline, a Bucket Getter PE~\cite{bucketgetter2023}, and the proposed PE with the 13-bit DEW accumulator of Section~\ref{subsec:dew_acc_width}.
+We compare three synthesized PEs in TSMC 90\,nm at 125\,MHz: a conventional BFP4 baseline, a Bucket Getter PE~\cite{bucketgetter2023}, and the proposed PE with the 13-bit DEW accumulator of Section~\ref{subsec:dew_acc_width}.
 Fig.~\ref{fig:pe_area_energy} reports cell area and energy, each normalized to the baseline.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/pe_area_energy_comparison.pdf}
-    \caption{Normalized PE area and energy of a BFP4 baseline, a Bucket Getter PE, and the proposed PE (TSMC 90\,nm, 100\,MHz). Both metrics are normalized to the baseline.}
+    \caption{Normalized PE area and energy of a BFP4 baseline, a Bucket Getter PE, and the proposed PE (TSMC 90\,nm, 125\,MHz). Both metrics are normalized to the baseline.}
     \label{fig:pe_area_energy}
 \end{figure}
 
 The proposed PE is smaller than both the baseline and Bucket Getter.
-Its energy is close to that of Bucket Getter and well below the baseline.
+Its energy is well below the baseline.
