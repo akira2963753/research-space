@@ -5,7 +5,7 @@ Report : power
         -analysis_effort low
 Design : BFP_PE
 Version: O-2018.06
-Date   : Tue Aug 25 02:54:15 2026
+Date   : Tue Sep  1 04:54:11 2026
 ****************************************
 
 
@@ -31,7 +31,7 @@ Power-specific unit information :
                                        Switch   Int      Leak     Total
 Hierarchy                              Power    Power    Power    Power    %
 --------------------------------------------------------------------------------
-BFP_PE                                    1.244    1.573 9.32e+07    2.909 100.0
-  u_fp_acc (FP_ACC)                       0.948    0.989 3.46e+07    1.972  67.8
-  u_int_mac (INT_MAC)                     0.281    0.492 5.42e+07    0.828  28.5
+BFP_PE                                    2.444    2.982 1.94e+08    5.620 100.0
+  u_fp_acc (FP_ACC)                       1.786    1.884 7.62e+07    3.747  66.7
+  u_int_mac (INT_MAC)                     0.630    0.986 1.12e+08    1.729  30.8
 1

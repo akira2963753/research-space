@@ -24,12 +24,13 @@
 \end{figure*}
 
 Low-precision quantization is essential for deploying large language models (LLMs) under tight memory and energy budgets.
+Power is part of that budget as well: industrial inference accelerators are designed around thermal design power because TDP tracks total cost of ownership, whereas area-based metrics such as performance per square millimeter can look good even when energy cost rises~\cite{tpuv4i2021}.
 Block Floating Point (BFP) offers a favorable accuracy--cost tradeoff by assigning a shared exponent to each fixed-size block while storing only low-bit mantissas~\cite{msfp2020,fast2022}.
 Recent BFP accelerators perform intra-block multiply--accumulate (MAC) with fixed-point arithmetic, but inter-block partial sums with mismatched exponents must still be merged in a floating-point accumulator (FP-Acc)~\cite{bucketgetter2023,winacc2025,smartblock2025,mgs2025}.
 
-Two coupled bottlenecks limit the efficiency of BFP-based LLM inference.
-First, the FP-Acc dominates processing-element (PE) cost: in synthesized low-bit configurations it can account for up to 68\% of power and 42\% of area~\cite{bucketgetter2023,winacc2025,smartblock2025}.
-Second, activation outliers compress the effective mantissa of co-located normal values and widen the exponent spread of partial sums, increasing FP-Acc activity~\cite{bie2024,oiso2026,bbal2025,harmonia2026}.
+Two coupled bottlenecks limit BFP-based LLM inference.
+First, the FP-Acc dominates processing-element (PE) cost, and more so in power than in area: in a synthesized low-bit BFP-PE driven by LLaMA2-7B activations it accounts for up to 68\% of power and 42\% of area (Fig.~\ref{fig:bfp_pe_ppa}).
+Second, activation outliers compress the effective mantissa of co-located normal values and widen the exponent spread of partial sums, increasing FP-Acc activity~\cite{bie2024,ees2025,oiso2026,bbal2025,harmonia2026}.
 
 This paper develops a hardware-friendly co-design that addresses both bottlenecks jointly.
 Our contributions are:

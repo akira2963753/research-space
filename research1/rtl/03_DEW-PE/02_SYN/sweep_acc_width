@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPORT_ROOT="${SCRIPT_DIR}/Sweep_Report"
+SOURCE_REPORT_DIR="${SCRIPT_DIR}/Report"
+
+mkdir -p "${REPORT_ROOT}"
+cd "${SCRIPT_DIR}"
+
+for width in $(seq 12 32); do
+    width_dir="${REPORT_ROOT}/W${width}"
+    mkdir -p "${width_dir}"
+
+    rm -f "${SOURCE_REPORT_DIR}/area.rpt"
+    rm -f "${SOURCE_REPORT_DIR}/area_h.rpt"
+
+    echo "========================================================="
+    echo "  Synthesizing DEW_ACC_W=${width}"
+    echo "========================================================="
+
+    DEW_ACC_W="${width}" make -f ../00_TESTBED/makefile syn
+
+    if [[ ! -f "${SOURCE_REPORT_DIR}/area.rpt" ]]; then
+        echo "[ERROR] Missing Report/area.rpt for DEW_ACC_W=${width}" >&2
+        exit 1
+    fi
+    if [[ ! -f "${SOURCE_REPORT_DIR}/area_h.rpt" ]]; then
+        echo "[ERROR] Missing Report/area_h.rpt for DEW_ACC_W=${width}" >&2
+        exit 1
+    fi
+
+    cp "${SOURCE_REPORT_DIR}/area.rpt" "${width_dir}/area.rpt"
+    cp "${SOURCE_REPORT_DIR}/area_h.rpt" "${width_dir}/area_h.rpt"
+done
+
+echo "========================================================="
+echo "  DEW_ACC width sweep complete: 12-bit to 32-bit"
+echo "  Reports: ${REPORT_ROOT}"
+echo "========================================================="

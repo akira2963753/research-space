@@ -22,10 +22,14 @@ Warning--empty publisher in bbal2025
 Warning--empty address in bbal2025
 Warning--empty publisher in billm2024
 Warning--empty address in billm2024
+Warning--empty publisher in tpuv4i2021
+Warning--empty address in tpuv4i2021
 Warning--empty publisher in smartblock2025
 Warning--empty address in smartblock2025
 Warning--empty publisher in winacc2025
 Warning--empty address in winacc2025
+Warning--empty publisher in ees2025
+Warning--empty address in ees2025
 Warning--empty publisher in bucketgetter2023
 Warning--empty address in bucketgetter2023
 Warning--no number and no volume in mgs2025
@@ -43,45 +47,45 @@ Warning--empty publisher in fast2022
 Warning--empty address in fast2022
 Warning--empty publisher in bie2024
 Warning--empty address in bie2024
-You've used 15 entries,
+You've used 17 entries,
             6273 wiz_defined-function locations,
-            1604 strings with 21168 characters,
-and the built_in function-call counts, 18413 in all, are:
-= -- 2181
-> -- 550
+            1617 strings with 21608 characters,
+and the built_in function-call counts, 20920 in all, are:
+= -- 2459
+> -- 620
 < -- 0
-+ -- 191
-- -- 206
-* -- 1223
-:= -- 1722
-add.period$ -- 74
-call.type$ -- 15
-change.case$ -- 101
-chr.to.int$ -- 14
-cite$ -- 44
-duplicate$ -- 1750
-empty$ -- 1218
-format.name$ -- 238
-if$ -- 4465
++ -- 215
+- -- 232
+* -- 1386
+:= -- 1953
+add.period$ -- 84
+call.type$ -- 17
+change.case$ -- 114
+chr.to.int$ -- 16
+cite$ -- 50
+duplicate$ -- 2001
+empty$ -- 1391
+format.name$ -- 268
+if$ -- 5066
 int.to.chr$ -- 3
 int.to.str$ -- 1
-missing$ -- 72
-newline$ -- 157
-num.names$ -- 104
-pop$ -- 735
+missing$ -- 82
+newline$ -- 173
+num.names$ -- 118
+pop$ -- 840
 preamble$ -- 1
-purify$ -- 219
+purify$ -- 248
 quote$ -- 0
-skip$ -- 669
+skip$ -- 768
 stack$ -- 0
-substring$ -- 1424
-swap$ -- 172
+substring$ -- 1634
+swap$ -- 198
 text.length$ -- 0
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 402
-warning$ -- 29
-while$ -- 112
+type$ -- 462
+warning$ -- 33
+while$ -- 128
 width$ -- 0
-write$ -- 321
-(There were 29 warnings)
+write$ -- 359
+(There were 33 warnings)

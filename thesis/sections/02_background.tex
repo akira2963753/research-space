@@ -21,7 +21,7 @@ In synthesized low-bit BFP-PE configurations, the FP-Acc accounts for up to 68\%
 
 \textbf{(2) Activation outliers.}
 BFP confines the influence of an outlier to its local block but does not eliminate the outlier itself.
-When a block contains a large-magnitude outlier, the shared exponent is determined by that value, and nonoutlier values in the same block lose a substantial number of effective mantissa bits~\cite{bie2024,oiso2026,bbal2025,harmonia2026}.
+When a block contains a large-magnitude outlier, the shared exponent is determined by that value, and nonoutlier values in the same block lose a substantial number of effective mantissa bits~\cite{bie2024,ees2025,oiso2026,bbal2025,harmonia2026}.
 This loss becomes more severe as the mantissa width decreases (Fig.~\ref{fig:vanilla_bfp_delta_ppl}).
 
 These two bottlenecks are coupled.

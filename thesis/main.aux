@@ -2,10 +2,10 @@
 \providecommand\hyper@newdestlabel[2]{}
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{tpuv4i2021}
 \citation{msfp2020,fast2022}
 \citation{bucketgetter2023,winacc2025,smartblock2025,mgs2025}
-\citation{bucketgetter2023,winacc2025,smartblock2025}
-\citation{bie2024,oiso2026,bbal2025,harmonia2026}
+\citation{bie2024,ees2025,oiso2026,bbal2025,harmonia2026}
 \citation{bie2024,oiso2026}
 \citation{smoothquant2023,olive2023,gobo2020,billm2024}
 \citation{msfp2020,fast2022,anda2025}
@@ -16,7 +16,7 @@
 \newlabel{sec:background}{{2}{1}{Background}{section.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Block Floating Point}{1}{subsection.2.1}\protected@file@percent }
 \citation{bucketgetter2023,winacc2025,smartblock2025}
-\citation{bie2024,oiso2026,bbal2025,harmonia2026}
+\citation{bie2024,ees2025,oiso2026,bbal2025,harmonia2026}
 \citation{bie2024}
 \citation{oiso2026}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Block-level data formats. (a) Conventional BFP with one shared exponent per block. (b) Bi-exponent BFP (BiE), which adds an outlier exponent and spends a type bit on every element. (c) The proposed Top-2 Activation-only Bi-Exponent BFP (T2A-BiE), which keeps both exponents but replaces the per-element type bits with two outlier indices, so the storage and MAC overhead is lower than that of BiE; weights remain single-exponent BFP as in (a).}}{2}{figure.caption.5}\protected@file@percent }
@@ -41,8 +41,8 @@
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces WikiText-2 $\Delta $PPL versus FP16 on LLaMA2-7B (G16). T2A-BiE stays close to full BiE and activation-only BiE.}}{3}{figure.caption.8}\protected@file@percent }
 \newlabel{fig:ppl_delta_comparison}{{5}{3}{WikiText-2 $\Delta $PPL versus FP16 on LLaMA2-7B (G16). T2A-BiE stays close to full BiE and activation-only BiE}{figure.caption.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Activation Top-2 Selection}{3}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Hybrid Top-2 DEWA}{3}{subsection.3.3}\protected@file@percent }
-\newlabel{subsec:hybrid}{{3.3}{3}{Hybrid Top-2 DEWA}{subsection.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Hybrid Top-2 DEWA}{4}{subsection.3.3}\protected@file@percent }
+\newlabel{subsec:hybrid}{{3.3}{4}{Hybrid Top-2 DEWA}{subsection.3.3}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces WikiText-2 $\Delta $PPL of Hybrid Top-2 DEWA versus T2A-BiE (G16) on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B. The best $(T_{\mathrm  {drop}}, T_{\mathrm  {replace}})$ pair varies by model; the hardware analysis uses $(9,3)$.}}{4}{figure.caption.9}\protected@file@percent }
 \newlabel{fig:hybrid_delta_ppl}{{6}{4}{WikiText-2 $\Delta $PPL of Hybrid Top-2 DEWA versus T2A-BiE (G16) on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B. The best $(T_{\mathrm {drop}}, T_{\mathrm {replace}})$ pair varies by model; the hardware analysis uses $(9,3)$}{figure.caption.9}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {4}Hardware Architecture}{4}{section.4}\protected@file@percent }
@@ -63,17 +63,19 @@
 \bibcite{olive2023}{{2}{2023}{{Guo et~al\mbox  {.}}}{{}}}
 \bibcite{bbal2025}{{3}{2025}{{Han et~al\mbox  {.}}}{{}}}
 \bibcite{billm2024}{{4}{2024}{{Huang et~al\mbox  {.}}}{{}}}
-\bibcite{smartblock2025}{{5}{2025a}{{Ju et~al\mbox  {.}}}{{}}}
-\bibcite{winacc2025}{{6}{2025b}{{Ju et~al\mbox  {.}}}{{}}}
-\bibcite{bucketgetter2023}{{7}{2023}{{Lo and Liu}}{{}}}
-\bibcite{mgs2025}{{8}{2025}{{Natesh et~al\mbox  {.}}}{{}}}
-\bibcite{msfp2020}{{9}{2020}{{Rouhani et~al\mbox  {.}}}{{}}}
-\bibcite{harmonia2026}{{10}{2026}{{Wang et~al\mbox  {.}}}{{}}}
-\bibcite{smoothquant2023}{{11}{2023}{{Xiao et~al\mbox  {.}}}{{}}}
-\bibcite{gobo2020}{{12}{2020}{{Zadeh et~al\mbox  {.}}}{{}}}
-\bibcite{fast2022}{{13}{2022}{{Zhang et~al\mbox  {.}}}{{}}}
-\bibcite{oiso2026}{{14}{2026}{{Zou et~al\mbox  {.}}}{{}}}
-\bibcite{bie2024}{{15}{2024}{{Zou et~al\mbox  {.}}}{{}}}
+\bibcite{tpuv4i2021}{{5}{2021}{{Jouppi et~al\mbox  {.}}}{{}}}
+\bibcite{smartblock2025}{{6}{2025a}{{Ju et~al\mbox  {.}}}{{}}}
+\bibcite{winacc2025}{{7}{2025b}{{Ju et~al\mbox  {.}}}{{}}}
+\bibcite{ees2025}{{8}{2025}{{Li et~al\mbox  {.}}}{{}}}
+\bibcite{bucketgetter2023}{{9}{2023}{{Lo and Liu}}{{}}}
+\bibcite{mgs2025}{{10}{2025}{{Natesh et~al\mbox  {.}}}{{}}}
+\bibcite{msfp2020}{{11}{2020}{{Rouhani et~al\mbox  {.}}}{{}}}
+\bibcite{harmonia2026}{{12}{2026}{{Wang et~al\mbox  {.}}}{{}}}
+\bibcite{smoothquant2023}{{13}{2023}{{Xiao et~al\mbox  {.}}}{{}}}
+\bibcite{gobo2020}{{14}{2020}{{Zadeh et~al\mbox  {.}}}{{}}}
+\bibcite{fast2022}{{15}{2022}{{Zhang et~al\mbox  {.}}}{{}}}
+\bibcite{oiso2026}{{16}{2026}{{Zou et~al\mbox  {.}}}{{}}}
+\bibcite{bie2024}{{17}{2024}{{Zou et~al\mbox  {.}}}{{}}}
 \newlabel{tocindent-1}{0pt}
 \newlabel{tocindent0}{0pt}
 \newlabel{tocindent1}{4.185pt}

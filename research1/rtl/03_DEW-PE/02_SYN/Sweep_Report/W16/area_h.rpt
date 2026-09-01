@@ -1,0 +1,47 @@
+ 
+****************************************
+Report : area
+Design : DEW_PE_DEW_ACC_W16
+Version: O-2018.06
+Date   : Mon Aug 31 23:59:53 2026
+****************************************
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+Number of ports:                          683
+Number of nets:                          4453
+Number of cells:                         3586
+Number of combinational cells:           3395
+Number of sequential cells:               187
+Number of macros/black boxes:               0
+Number of buf/inv:                        692
+Number of references:                      43
+
+Combinational area:              15714.417838
+Buf/Inv area:                     1473.998448
+Noncombinational area:            2934.590414
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 18649.008252
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area            Local cell area
+                                  -------------------  ----------------------------- 
+Hierarchical cell                 Absolute    Percent  Combi-      Noncombi-  Black-
+                                  Total       Total    national    national   boxes   Design
+--------------------------------  ----------  -------  ----------  ---------  ------  ----------------------------------
+DEW_PE_DEW_ACC_W16                18649.0083    100.0   1073.9232  1720.2528  0.0000  DEW_PE_DEW_ACC_W16
+u_dew_acc                          3806.0065     20.4   3088.4113   717.5952  0.0000  DEW_ACC_ACC_W16_T_SKIP9_T_REPLACE3
+u_fp_acc                           4994.9425     26.8   4498.2001   496.7424  0.0000  FP_ACC
+u_int_mac                          7053.8832     37.8   5181.2208     0.0000  0.0000  INT_MAC
+u_int_mac/u_outlier_dispatcher     1872.6625     10.0   1872.6625     0.0000  0.0000  Outlier_Dispatcher
+--------------------------------  ----------  -------  ----------  ---------  ------  ----------------------------------
+Total                                                  15714.4178  2934.5904  0.0000
+
+1

@@ -175,8 +175,7 @@ module DEW_ACC #(
             bypass_value_work
         });
         candidate_work = aligned_value_work + bypass_value_ext_work;
-        overflow_work = align_work
-                      && candidate_work[ACC_W] != candidate_work[ACC_W-1];
+        overflow_work = align_work && candidate_work[ACC_W] != candidate_work[ACC_W-1];
 
         // ALIGN/SKIP mux followed by LOAD/REPLACE mux.
         skip_mux_value_work = (align_work)?

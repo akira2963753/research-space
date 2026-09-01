@@ -3,28 +3,28 @@
 Report : area
 Design : BFP_PE
 Version: O-2018.06
-Date   : Tue Aug 25 02:54:14 2026
+Date   : Tue Sep  1 04:54:11 2026
 ****************************************
 
 Library(s) Used:
 
     slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
 
-Number of ports:                          368
-Number of nets:                          4126
-Number of cells:                         3701
-Number of combinational cells:           3596
-Number of sequential cells:               103
+Number of ports:                          369
+Number of nets:                          5200
+Number of cells:                         4837
+Number of combinational cells:           4733
+Number of sequential cells:               102
 Number of macros/black boxes:               0
-Number of buf/inv:                        722
-Number of references:                      22
+Number of buf/inv:                       1151
+Number of references:                      26
 
-Combinational area:              16683.912330
-Buf/Inv area:                     1647.576051
-Noncombinational area:            1589.716806
+Combinational area:              27861.322011
+Buf/Inv area:                     3209.774487
+Noncombinational area:            1747.065620
 Macro/Black Box area:                0.000000
 Net Interconnect area:      undefined  (No wire load specified)
 
-Total cell area:                 18273.629136
+Total cell area:                 29608.387632
 Total area:                 undefined
 1

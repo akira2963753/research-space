@@ -37,33 +37,33 @@ module INT_MAC (
             assign w_man[i] = w_man_b[i*`BFP_MAN_W +: `BFP_MAN_W];
             assign a_man[i] = a_man_b[i*`BFP_MAN_W +: `BFP_MAN_W];
             assign prod[i] = w_man[i] * a_man[i];
-            assign lane_sprod[i] = (w_sign_b[i] ^ a_sign_b[i])?
-                                   -$signed({1'b0, prod[i]}) :
-                                   $signed({1'b0, prod[i]});
+
+            // transfer to signed product
+            assign lane_sprod[i] = (w_sign_b[i] ^ a_sign_b[i])? -$signed({1'b0, prod[i]}) : $signed({1'b0, prod[i]});
             assign sprod_b[i*`BFP_SPROD_W +: `BFP_SPROD_W] = lane_sprod[i];
-            assign routed_sprod[i] =
-                $signed(routed_sprod_b[i*`BFP_SPROD_W +: `BFP_SPROD_W]);
+
+            // unpacked from outlier dispatcher
+            assign routed_sprod[i] = $signed(routed_sprod_b[i*`BFP_SPROD_W +: `BFP_SPROD_W]);
         end
     endgenerate
 
     //=============================================================
     //                  Signed Product Dispatch
     //=============================================================
-    logic outlier1_valid, outlier2_valid;
+    logic no_outlier, one_outlier;
 
     Outlier_Dispatcher u_outlier_dispatcher (
         .sprod_b(sprod_b),
         .oi1(oi1),
         .oi2(oi2),
         .routed_sprod_b(routed_sprod_b),
-        .outlier1_valid(outlier1_valid),
-        .outlier2_valid(outlier2_valid)
+        .no_outlier(no_outlier),
+        .one_outlier(one_outlier)
     );
 
     //=============================================================
     //               Architecture Mux / DMux Routing
     //=============================================================
-    logic one_outlier;
     logic signed [`BFP_SPROD_W-1:0] opsum1, opsum2;
     logic signed [`BFP_SPROD_W-1:0] op1_to_tail;
     logic signed [`BFP_SPROD_W:0] tail_sum;
@@ -71,22 +71,18 @@ module INT_MAC (
     logic signed [`BFP_SPROD_W:0] outlier_sum;
     logic [`BFP_SPROD_W:0] outlier_abs;
 
-    assign one_outlier = outlier1_valid && !outlier2_valid;
     assign opsum1 = routed_sprod[`BFP_GSIZE-1];
     assign opsum2 = routed_sprod[`BFP_GSIZE-2];
-
     assign op1_to_tail = (one_outlier)? '0 : opsum1;
-
     assign tail_sum =
         $signed({opsum2[`BFP_SPROD_W-1], opsum2}) +
         $signed({op1_to_tail[`BFP_SPROD_W-1], op1_to_tail});
-
-    assign outlier_sum = (one_outlier)?
-                         $signed({opsum1[`BFP_SPROD_W-1], opsum1}) :
-                         (outlier2_valid)? tail_sum : '0;
-    assign tail_to_normal = (outlier2_valid)? '0 : tail_sum;
-    assign outlier_abs = (outlier_sum[`BFP_SPROD_W])?
-                         $unsigned(-outlier_sum) : $unsigned(outlier_sum);
+    assign outlier_sum = (no_outlier)?
+                         '0 :
+                         (one_outlier)?
+                         $signed({opsum1[`BFP_SPROD_W-1], opsum1}) : tail_sum;
+    assign tail_to_normal = (no_outlier || one_outlier)? tail_sum : '0;
+    assign outlier_abs = (outlier_sum[`BFP_SPROD_W])? $unsigned(-outlier_sum) : $unsigned(outlier_sum);
     assign outlier_sign = outlier_sum[`BFP_SPROD_W];
     assign outlier_mag = outlier_abs[`BFP_SPROD_W-1:0];
 

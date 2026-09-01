@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : DEW_PE_DEW_ACC_W23
+Version: O-2018.06
+Date   : Tue Sep  1 00:02:43 2026
+****************************************
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+Number of ports:                          683
+Number of nets:                          4807
+Number of cells:                         3903
+Number of combinational cells:           3705
+Number of sequential cells:               194
+Number of macros/black boxes:               0
+Number of buf/inv:                        800
+Number of references:                      42
+
+Combinational area:              16944.984248
+Buf/Inv area:                     1700.496056
+Noncombinational area:            3043.252814
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 19988.237063
+Total area:                 undefined
+1

@@ -6,6 +6,7 @@
 #--------------------- TOP Module Definition ---------------------
 #=================================================================
 set DESIGN "DEW_PE"
+set TOP_DESIGN $DESIGN
 set CYCLE 10
 
 #=================================================================
@@ -25,7 +26,16 @@ set_operating_conditions -min fast -max slow
 #----------------- Analyze and Elaborate Design ------------------
 #=================================================================
 analyze -f sverilog -vcs "-f file.f" -library WORK
-elaborate $DESIGN -library WORK
+if {[info exists ::env(DEW_ACC_W)]} {
+    set DEW_ACC_W $::env(DEW_ACC_W)
+    if {![string is integer -strict $DEW_ACC_W] || $DEW_ACC_W < 11} {
+        error "DEW_ACC_W must be an integer greater than or equal to 11"
+    }
+    elaborate $TOP_DESIGN -library WORK -parameters "DEW_ACC_W=$DEW_ACC_W"
+    set DESIGN [get_object_name [current_design]]
+} else {
+    elaborate $TOP_DESIGN -library WORK
+}
 current_design $DESIGN
 link
 

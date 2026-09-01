@@ -2,7 +2,7 @@
 %%% Do NOT edit. File created by BibTeX with style
 %%% ACM-Reference-Format-Journals [18-Jan-2012].
 
-\begin{thebibliography}{15}
+\begin{thebibliography}{17}
 
 %%% ====================================================================
 %%% NOTE TO THE USER: you can override these defaults by providing
@@ -83,6 +83,18 @@
 \newblock
 
 
+\bibitem[Jouppi et~al\mbox{.}(2021)]%
+        {tpuv4i2021}
+\bibfield{author}{\bibinfo{person}{N.~P. Jouppi} {et~al\mbox{.}}}
+  \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Ten Lessons from Three Generations Shaped
+  {Google}'s {TPUv4i}: Industrial Product}. In \bibinfo{booktitle}{\emph{Proc.
+  48th Annu. Int. Symp. Computer Architecture ({ISCA})}}.
+  \bibinfo{pages}{1--14}.
+\newblock
+\href{https://doi.org/10.1109/ISCA52012.2021.00010}{doi:\nolinkurl{10.1109/ISCA52012.2021.00010}}
+
+
 \bibitem[Ju et~al\mbox{.}(2025a)]%
         {smartblock2025}
 \bibfield{author}{\bibinfo{person}{X. Ju} {et~al\mbox{.}}}
@@ -104,6 +116,19 @@
   Design, Automation \& Test in Europe Conf. (DATE)}}. \bibinfo{pages}{1--7}.
 \newblock
 \href{https://doi.org/10.23919/DATE64628.2025.10992780}{doi:\nolinkurl{10.23919/DATE64628.2025.10992780}}
+
+
+\bibitem[Li et~al\mbox{.}(2025)]%
+        {ees2025}
+\bibfield{author}{\bibinfo{person}{D. Li}, \bibinfo{person}{Z. Li},
+  \bibinfo{person}{B. Liu}, {and} \bibinfo{person}{J. Wu}.}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{Improving Efficiency in Large Language Models via
+  Extendable Block Floating Point Representation}. In
+  \bibinfo{booktitle}{\emph{Findings Assoc. Comput. Linguistics: {ACL} 2025}}.
+  \bibinfo{pages}{14861--14873}.
+\newblock
+\href{https://doi.org/10.18653/v1/2025.findings-acl.768}{doi:\nolinkurl{10.18653/v1/2025.findings-acl.768}}
 
 
 \bibitem[Lo and Liu(2023)]%
