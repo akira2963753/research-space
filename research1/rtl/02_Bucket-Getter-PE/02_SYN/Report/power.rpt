@@ -1,0 +1,49 @@
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : BG_PE
+Version: O-2018.06
+Date   : Sat Aug 29 22:19:38 2026
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /usr/cad/CBDK_TSMC90G_Arm_v1.1/Lib90/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 0.9  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+  Cell Internal Power  = 375.5880 uW   (93%)
+  Net Switching Power  =  27.0803 uW    (7%)
+                         ---------
+Total Dynamic Power    = 402.6682 uW  (100%)
+
+Cell Leakage Power     =  56.5166 uW
+
+
+                 Internal         Switching           Leakage            Total
+Power Group      Power            Power               Power              Power   (   %    )  Attrs
+--------------------------------------------------------------------------------------------------
+io_pad             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
+clock_network      0.0000            0.0000            0.0000            0.0000  (   0.00%)
+register           0.3043        1.5763e-03        6.6332e+06            0.3125  (  68.05%)
+sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
+combinational  7.1328e-02        2.5504e-02        4.9883e+07            0.1467  (  31.95%)
+--------------------------------------------------------------------------------------------------
+Total              0.3756 mW     2.7080e-02 mW     5.6517e+07 pW         0.4592 mW
+1
