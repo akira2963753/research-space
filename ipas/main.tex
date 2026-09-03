@@ -1,0 +1,69 @@
+% Campus-seminar draft using acmart/sigconf layout only.
+% nonacm drops ACM/DAC header, footer, copyright, and badge chrome.
+
+\documentclass[sigconf,nonacm]{acmart}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+
+\renewcommand{\dbltopfraction}{0.9}
+\setcounter{dbltopnumber}{3}
+
+% acmart resets caption skip at begin-document; apply the tighter gap there.
+\AtBeginDocument{\captionsetup{skip=4pt}}
+
+\setcopyright{none}
+
+\title[DEWA with Activation Top-2 Selection]{Dynamic Exponent-Window Accumulation with Activation Top-2 Selection for Efficient Low-Bit BFP LLM Inference}
+
+\author{Ming-Hong Lin} 
+\affiliation{%
+  \institution{National Taiwan University of Science and Technology}
+  \department{Department of Electrical Engineering}
+  \city{Taipei}
+  \country{Taiwan}}
+\renewcommand{\shortauthors}{Lin}
+
+\begin{document}
+
+\begin{abstract}
+Block Floating Point (BFP) reduces multiply--accumulate cost by sharing one exponent per block, but partial sums from blocks with different exponents must still be merged in a floating-point accumulator (FP-Acc).
+As the mantissa width shrinks, the FP-Acc increasingly dominates processing-element power and area, and activation outliers aggravate the problem by widening the exponent spread across blocks.
+We propose \emph{Dynamic Exponent-Window Accumulation} (DEWA), a lightweight integer accumulator that retains partial sums within a sliding exponent window and forwards only out-of-window events to the FP-Acc, substantially reducing its utilization.
+To prevent outlier-induced window shifting, we pair DEWA with \emph{Top-2 Activation-only Bi-Exponent} (T2A-BiE) encoding, which gives each activation block a second exponent for at most two outlier lanes while leaving weights in standard single-exponent BFP.
+Together, the two techniques preserve model accuracy on LLaMA2-7B, LLaMA-3.1-8B, and OPT-6.7B while yielding a smaller and more energy-efficient PE than both a conventional BFP baseline and a recent BFP accelerator design.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012> 
+ <concept>
+  <concept_id>10010520.10010521.10010528.10010531</concept_id>
+  <concept_desc>Computer systems organization~Neural networks</concept_desc>
+  <concept_significance>500</concept_significance>
+ </concept>
+ <concept>
+  <concept_id>10010583.10010723.10010724</concept_id>
+  <concept_desc>Hardware~Arithmetic and datapath circuits</concept_desc>
+  <concept_significance>300</concept_significance>
+ </concept> 
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Computer systems organization~Neural networks}
+\ccsdesc[300]{Hardware~Arithmetic and datapath circuits}
+
+\keywords{Block floating point, large language models, quantization, hardware accelerator, outlier handling}
+
+\maketitle
+
+\input{sections/01_introduction}
+\input{sections/02_background}
+\input{sections/03_design}
+\input{sections/04_architecture}
+\input{sections/05_evaluation}
+\input{sections/05_conclusion}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

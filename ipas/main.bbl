@@ -1,0 +1,244 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{17}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{} and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showURL}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showURL #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Fang et~al\mbox{.}(2025)]%
+        {anda2025}
+\bibfield{author}{\bibinfo{person}{C. Fang}, \bibinfo{person}{M. Shi},
+  \bibinfo{person}{R. Geens}, \bibinfo{person}{A. Symons}, \bibinfo{person}{Z.
+  Wang}, {and} \bibinfo{person}{M. Verhelst}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{{Anda}: Unlocking Efficient {LLM} Inference with a
+  Variable-Length Grouped Activation Data Format}. In
+  \bibinfo{booktitle}{\emph{Proc. IEEE Int. Symp. High-Performance Computer
+  Architecture (HPCA)}}. \bibinfo{pages}{1467--1481}.
+\newblock
+\href{https://doi.org/10.1109/HPCA61900.2025.00110}{doi:\nolinkurl{10.1109/HPCA61900.2025.00110}}
+
+
+\bibitem[Guo et~al\mbox{.}(2023)]%
+        {olive2023}
+\bibfield{author}{\bibinfo{person}{C. Guo} {et~al\mbox{.}}}
+  \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{{OliVe}: Accelerating Large Language Models via
+  Hardware-Friendly Outlier-Victim Pair Quantization}. In
+  \bibinfo{booktitle}{\emph{Proc. 50th Annu. Int. Symp. Computer Architecture
+  (ISCA)}}. \bibinfo{pages}{1--15}.
+\newblock
+\href{https://doi.org/10.1145/3579371.3589038}{doi:\nolinkurl{10.1145/3579371.3589038}}
+
+
+\bibitem[Han et~al\mbox{.}(2025)]%
+        {bbal2025}
+\bibfield{author}{\bibinfo{person}{X. Han} {et~al\mbox{.}}}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{{BBAL}: A Bidirectional Block Floating Point-Based
+  Quantisation Accelerator for Large Language Models}. In
+  \bibinfo{booktitle}{\emph{Proc. 62nd ACM/IEEE Design Automation Conf.
+  (DAC)}}. \bibinfo{pages}{1--7}.
+\newblock
+
+
+\bibitem[Huang et~al\mbox{.}(2024)]%
+        {billm2024}
+\bibfield{author}{\bibinfo{person}{W. Huang} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{{BiLLM}: Pushing the Limit of Post-Training
+  Quantization for {LLMs}}. In \bibinfo{booktitle}{\emph{Proc. 41st Int. Conf.
+  Machine Learning (ICML)}} \emph{(\bibinfo{series}{PMLR},
+  Vol.~\bibinfo{volume}{235})}. \bibinfo{pages}{20023--20042}.
+\newblock
+
+
+\bibitem[Jouppi et~al\mbox{.}(2021)]%
+        {tpuv4i2021}
+\bibfield{author}{\bibinfo{person}{N.~P. Jouppi} {et~al\mbox{.}}}
+  \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Ten Lessons from Three Generations Shaped
+  {Google}'s {TPUv4i}: Industrial Product}. In \bibinfo{booktitle}{\emph{Proc.
+  48th Annu. Int. Symp. Computer Architecture ({ISCA})}}.
+  \bibinfo{pages}{1--14}.
+\newblock
+\href{https://doi.org/10.1109/ISCA52012.2021.00010}{doi:\nolinkurl{10.1109/ISCA52012.2021.00010}}
+
+
+\bibitem[Ju et~al\mbox{.}(2025a)]%
+        {smartblock2025}
+\bibfield{author}{\bibinfo{person}{X. Ju} {et~al\mbox{.}}}
+  \bibinfo{year}{2025}\natexlab{a}.
+\newblock \showarticletitle{{SmartBlock}: Adaptive Block Floating Point
+  Quantization for Efficient {DNN} Acceleration}. In
+  \bibinfo{booktitle}{\emph{Proc. 54th Int. Conf. Parallel Processing (ICPP)}}.
+  \bibinfo{pages}{428--438}.
+\newblock
+\href{https://doi.org/10.1145/3754598.3754660}{doi:\nolinkurl{10.1145/3754598.3754660}}
+
+
+\bibitem[Ju et~al\mbox{.}(2025b)]%
+        {winacc2025}
+\bibfield{author}{\bibinfo{person}{X. Ju} {et~al\mbox{.}}}
+  \bibinfo{year}{2025}\natexlab{b}.
+\newblock \showarticletitle{{WinAcc}: Window-Based Acceleration of Neural
+  Networks Using Block Floating Point}. In \bibinfo{booktitle}{\emph{Proc.
+  Design, Automation \& Test in Europe Conf. (DATE)}}. \bibinfo{pages}{1--7}.
+\newblock
+\href{https://doi.org/10.23919/DATE64628.2025.10992780}{doi:\nolinkurl{10.23919/DATE64628.2025.10992780}}
+
+
+\bibitem[Li et~al\mbox{.}(2025)]%
+        {ees2025}
+\bibfield{author}{\bibinfo{person}{D. Li}, \bibinfo{person}{Z. Li},
+  \bibinfo{person}{B. Liu}, {and} \bibinfo{person}{J. Wu}.}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{Improving Efficiency in Large Language Models via
+  Extendable Block Floating Point Representation}. In
+  \bibinfo{booktitle}{\emph{Findings Assoc. Comput. Linguistics: {ACL} 2025}}.
+  \bibinfo{pages}{14861--14873}.
+\newblock
+\href{https://doi.org/10.18653/v1/2025.findings-acl.768}{doi:\nolinkurl{10.18653/v1/2025.findings-acl.768}}
+
+
+\bibitem[Lo and Liu(2023)]%
+        {bucketgetter2023}
+\bibfield{author}{\bibinfo{person}{Y.-C. Lo} {and} \bibinfo{person}{R.-S.
+  Liu}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Bucket Getter: A Bucket-Based Processing Engine for
+  Low-Bit Block Floating Point ({BFP}) {DNNs}}. In
+  \bibinfo{booktitle}{\emph{Proc. 56th IEEE/ACM Int. Symp. Microarchitecture
+  (MICRO)}}. \bibinfo{pages}{1002--1015}.
+\newblock
+\href{https://doi.org/10.1145/3613424.3614249}{doi:\nolinkurl{10.1145/3613424.3614249}}
+
+
+\bibitem[Natesh et~al\mbox{.}(2025)]%
+        {mgs2025}
+\bibfield{author}{\bibinfo{person}{V. Natesh}, \bibinfo{person}{H.~T. Kung},
+  {and} \bibinfo{person}{D. Kong}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{{MGS}: Markov Greedy Sums for Accurate Low-Bitwidth
+  Floating-Point Accumulation}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2504.09072}}
+  (\bibinfo{year}{2025}).
+\newblock
+\href{https://doi.org/10.48550/arXiv.2504.09072}{doi:\nolinkurl{10.48550/arXiv.2504.09072}}
+
+
+\bibitem[Rouhani et~al\mbox{.}(2020)]%
+        {msfp2020}
+\bibfield{author}{\bibinfo{person}{B.~D. Rouhani} {et~al\mbox{.}}}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Pushing the Limits of Narrow Precision Inferencing
+  at Cloud Scale with Microsoft Floating Point}. In
+  \bibinfo{booktitle}{\emph{Advances in Neural Information Processing Systems
+  33 (NeurIPS)}}.
+\newblock
+
+
+\bibitem[Wang et~al\mbox{.}(2026)]%
+        {harmonia2026}
+\bibfield{author}{\bibinfo{person}{X. Wang}, \bibinfo{person}{J. Li},
+  \bibinfo{person}{Y. Sun}, {and} \bibinfo{person}{W. He}.}
+  \bibinfo{year}{2026}\natexlab{}.
+\newblock \showarticletitle{{Harmonia}: Algorithm-Hardware Co-Design for
+  Memory- and Compute-Efficient {BFP}-Based {LLM} Inference}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2602.04595}}
+  (\bibinfo{year}{2026}).
+\newblock
+\href{https://doi.org/10.48550/arXiv.2602.04595}{doi:\nolinkurl{10.48550/arXiv.2602.04595}}
+
+
+\bibitem[Xiao et~al\mbox{.}(2023)]%
+        {smoothquant2023}
+\bibfield{author}{\bibinfo{person}{G. Xiao}, \bibinfo{person}{J. Lin},
+  \bibinfo{person}{M. Seznec}, \bibinfo{person}{H. Wu}, \bibinfo{person}{J.
+  Demouth}, {and} \bibinfo{person}{S. Han}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{{SmoothQuant}: Accurate and Efficient Post-Training
+  Quantization for Large Language Models}. In \bibinfo{booktitle}{\emph{Proc.
+  40th Int. Conf. Machine Learning (ICML)}} \emph{(\bibinfo{series}{PMLR},
+  Vol.~\bibinfo{volume}{202})}. \bibinfo{pages}{38087--38099}.
+\newblock
+
+
+\bibitem[Zadeh et~al\mbox{.}(2020)]%
+        {gobo2020}
+\bibfield{author}{\bibinfo{person}{A.~H. Zadeh}, \bibinfo{person}{I. Edo},
+  \bibinfo{person}{O.~M. Awad}, {and} \bibinfo{person}{A. Moshovos}.}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{{GOBO}: Quantizing Attention-Based {NLP} Models for
+  Low Latency and Energy Efficient Inference}. In
+  \bibinfo{booktitle}{\emph{Proc. 53rd IEEE/ACM Int. Symp. Microarchitecture
+  (MICRO)}}. \bibinfo{pages}{811--824}.
+\newblock
+\href{https://doi.org/10.1109/MICRO50266.2020.00071}{doi:\nolinkurl{10.1109/MICRO50266.2020.00071}}
+
+
+\bibitem[Zhang et~al\mbox{.}(2022)]%
+        {fast2022}
+\bibfield{author}{\bibinfo{person}{S.~Q. Zhang}, \bibinfo{person}{B. McDanel},
+  {and} \bibinfo{person}{H.~T. Kung}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{{FAST}: {DNN} Training Under Variable Precision
+  Block Floating Point with Stochastic Rounding}. In
+  \bibinfo{booktitle}{\emph{Proc. IEEE Int. Symp. High-Performance Computer
+  Architecture (HPCA)}}. \bibinfo{pages}{846--860}.
+\newblock
+\href{https://doi.org/10.1109/HPCA53966.2022.00067}{doi:\nolinkurl{10.1109/HPCA53966.2022.00067}}
+
+
+\bibitem[Zou et~al\mbox{.}(2026)]%
+        {oiso2026}
+\bibfield{author}{\bibinfo{person}{L. Zou} {et~al\mbox{.}}}
+  \bibinfo{year}{2026}\natexlab{}.
+\newblock \showarticletitle{{Oiso}: Outlier-Isolated Data Format for Low-Bit
+  Large Language Model Quantization}.
+\newblock \bibinfo{journal}{\emph{IEEE Trans. Comput.-Aided Design Integr.
+  Circuits Syst.}} \bibinfo{volume}{45}, \bibinfo{number}{2}
+  (\bibinfo{date}{Feb.} \bibinfo{year}{2026}), \bibinfo{pages}{929--942}.
+\newblock
+\href{https://doi.org/10.1109/TCAD.2025.3585023}{doi:\nolinkurl{10.1109/TCAD.2025.3585023}}
+
+
+\bibitem[Zou et~al\mbox{.}(2024)]%
+        {bie2024}
+\bibfield{author}{\bibinfo{person}{L. Zou}, \bibinfo{person}{W. Zhao},
+  \bibinfo{person}{S. Yin}, \bibinfo{person}{C. Bai}, \bibinfo{person}{Q. Sun},
+  {and} \bibinfo{person}{B. Yu}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{{BiE}: Bi-Exponent Block Floating-Point for Large
+  Language Models Quantization}. In \bibinfo{booktitle}{\emph{Proc. 41st Int.
+  Conf. Machine Learning (ICML)}} \emph{(\bibinfo{series}{PMLR},
+  Vol.~\bibinfo{volume}{235})}. \bibinfo{pages}{62978--62992}.
+\newblock
+
+
+\end{thebibliography}

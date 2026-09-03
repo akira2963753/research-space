@@ -14,24 +14,26 @@ FIGURE_STEM = PLOT_DIR / "figures" / "pe_area_energy_comparison"
 
 BASELINE_REPORT = RTL_ROOT / "01_Baseline-BFP-PE" / "BFP4" / "02_SYN" / "Report"
 BUCKET_REPORT = RTL_ROOT / "02_Bucket-Getter-PE" / "02_SYN" / "Report"
-OURS_AREA_REPORT = RTL_ROOT / "03_DEW-PE" / "02_SYN" / "Sweep_Report" / "W13" / "area.rpt"
+OURS_AREA_DIR = RTL_ROOT / "03_DEW-PE" / "02_SYN" / "Sweep_Report" / "W13"
 OURS_POWER_REPORT = RTL_ROOT / "03_DEW-PE" / "02_SYN" / "Report" / "power.rpt"
 
+# share_fp_acc: count half of u_fp_acc to model two PEs sharing one FP-Acc.
 DESIGNS = (
-    ("Baseline", BASELINE_REPORT / "area.rpt", BASELINE_REPORT / "power.rpt"),
-    ("Bucket", BUCKET_REPORT / "area.rpt", BUCKET_REPORT / "power.rpt"),
-    ("Ours", OURS_AREA_REPORT, OURS_POWER_REPORT),
+    ("Baseline", BASELINE_REPORT / "area.rpt", BASELINE_REPORT / "area_h.rpt", BASELINE_REPORT / "power.rpt", False),
+    ("Bucket", BUCKET_REPORT / "area.rpt", BUCKET_REPORT / "area_h.rpt", BUCKET_REPORT / "power.rpt", True),
+    ("Ours", OURS_AREA_DIR / "area.rpt", OURS_AREA_DIR / "area_h.rpt", OURS_POWER_REPORT, True),
 )
 
 AREA_RE = re.compile(r"^Total cell area:\s+([0-9.]+)", re.MULTILINE)
+FP_ACC_AREA_RE = re.compile(r"^u_fp_acc\s+([0-9.]+)", re.MULTILINE)
 POWER_RE = re.compile(
     r"^Total\s+[0-9.eE+-]+ mW\s+[0-9.eE+-]+ mW\s+[0-9.eE+-]+ pW\s+([0-9.eE+-]+) mW",
     re.MULTILINE,
 )
-# Light fills from plot/05_pe-power-area; dark solids look too heavy as full bars.
-AREA_COLOR = "#BCDCE1"
-ENERGY_COLOR = "#F4DFB6"
-EDGE_COLOR = "#000000"
+# Desaturated teal / sand; keep the 05 family without the heavy chroma.
+AREA_COLOR = "#7D9EA5"
+ENERGY_COLOR = "#C9B17A"
+EDGE_COLOR = "#1A1A1A"
 TEXT_COLOR = "#232323"
 GRID_COLOR = "#DDE3E9"
 
@@ -75,6 +77,14 @@ def parse_area(area_path: Path) -> float:
     return float(area_match.group(1))
 
 
+def parse_fp_acc_area(area_h_path: Path) -> float:
+    area_h_text = area_h_path.read_text(encoding="utf-8", errors="ignore")
+    fp_match = FP_ACC_AREA_RE.search(area_h_text)
+    if fp_match is None:
+        raise ValueError(f"Missing u_fp_acc area in {area_h_path}")
+    return float(fp_match.group(1))
+
+
 def parse_power(power_path: Path) -> float:
     power_text = power_path.read_text(encoding="utf-8", errors="ignore")
     power_matches = POWER_RE.findall(power_text)
@@ -100,17 +110,22 @@ def save_figure(fig: plt.Figure, stem: Path) -> None:
 
 
 def plot_comparison() -> None:
-    labels = [name for name, _, _ in DESIGNS]
+    labels = [name for name, _, _, _, _ in DESIGNS]
     areas = []
     powers = []
-    for name, area_path, power_path in DESIGNS:
+    for name, area_path, area_h_path, power_path, share_fp_acc in DESIGNS:
         area = parse_area(area_path)
+        fp_acc_area = parse_fp_acc_area(area_h_path)
+        if share_fp_acc:
+            area = area - 0.5 * fp_acc_area
         power = parse_power(power_path)
         areas.append(area)
         powers.append(power)
-        print(f"{name}: area={area:.4f} ({area_path.name})  total_power={power:.4f} mW")
-        print(f"  area <- {area_path}")
-        print(f"  power <- {power_path}")
+        share_note = "half FP-Acc" if share_fp_acc else "full FP-Acc"
+        print(
+            f"{name}: area={area:.4f} ({share_note}, fp_acc={fp_acc_area:.4f})  "
+            f"total_power={power:.4f} mW"
+        )
 
     areas = np.asarray(areas, dtype=np.float64)
     powers = np.asarray(powers, dtype=np.float64)
@@ -119,27 +134,28 @@ def plot_comparison() -> None:
 
     configure_ieee_style()
     fig, ax = plt.subplots(figsize=(3.55, 2.15))
-    bar_width = 0.20
-    group_gap = 0.70
+    bar_width = 0.14
+    group_gap = 0.58
+    pair_gap = 0.03
     x = np.arange(len(labels), dtype=np.float64) * group_gap
 
     area_bars = ax.bar(
-        x - bar_width / 2.0,
+        x - bar_width / 2.0 - pair_gap / 2.0,
         area_norm,
         width=bar_width,
         color=AREA_COLOR,
         edgecolor=EDGE_COLOR,
-        linewidth=0.95,
+        linewidth=0.70,
         label="Area",
         zorder=3,
     )
     energy_bars = ax.bar(
-        x + bar_width / 2.0,
+        x + bar_width / 2.0 + pair_gap / 2.0,
         energy_norm,
         width=bar_width,
         color=ENERGY_COLOR,
         edgecolor=EDGE_COLOR,
-        linewidth=0.95,
+        linewidth=0.70,
         label="Energy",
         zorder=3,
     )
@@ -163,7 +179,7 @@ def plot_comparison() -> None:
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, color=TEXT_COLOR)
-    ax.set_xlim(x[0] - bar_width - 0.12, x[-1] + bar_width + 0.12)
+    ax.set_xlim(x[0] - bar_width - pair_gap - 0.10, x[-1] + bar_width + pair_gap + 0.10)
     ax.set_ylabel("Normalized", color=TEXT_COLOR)
     ax.set_ylim(0.0, max(area_norm.max(), energy_norm.max()) * 1.18)
     ax.yaxis.set_major_locator(MultipleLocator(0.2))
@@ -194,7 +210,7 @@ def plot_comparison() -> None:
     fig.tight_layout(pad=0.35)
     save_figure(fig, FIGURE_STEM)
     print("Normalization: Baseline = 1.0")
-    print("Ours area is DEW_ACC_W=13; energy is DC total power from the W24 report.")
+    print("Bucket/Ours area counts half of u_fp_acc to model two-PE sharing.")
     print(f"Saved: {FIGURE_STEM.with_suffix('.png')}")
     print(f"Saved: {FIGURE_STEM.with_suffix('.pdf')}")
 

@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1788273907.39941 "main.aux" "main.bbl" "main" 1788274188.26233 0
+["bibtex main"] 1788274346.79016 "main.aux" "main.bbl" "main" 1788274418.84497 0
   "./references.bib" 1788270187 5938 8684c22a0175204c6718fc70343bcefa ""
   "C:/Users/harry/AppData/Local/Programs/MiKTeX/bibtex/bst/acmart/ACM-Reference-Format.bst" 1783763058 93560 7091f2b0543d2c8bfe2e82ce5d54a029 ""
-  "main.aux" 1788274186 11751 25a1ccb5c56935a22e97d682ff7cf41d "pdflatex"
+  "main.aux" 1788274417 11751 8c384d12cf999d4d3699596f9893706f "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1788274184.16404 "c:/Users/harry/Desktop/Master/Research/thesis/main.tex" "main.pdf" "main" 1788274188.26348 0
+["pdflatex"] 1788274414.76415 "c:/Users/harry/Desktop/Master/Research/ipas/main.tex" "main.pdf" "main" 1788274418.84641 0
   "C:/Users/harry/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1787675973 186066 c797610d3c7aadc509276bf4bcd8a24b ""
   "C:/Users/harry/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1787675965 13333487 1763c48b127289480b88947770caaad8 ""
   "C:/Users/harry/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/libertine/lbtn_25tcsq.enc" 1497089888 2921 8ca0eb0831f9bc5da080d3697cfe67bf ""
@@ -195,7 +195,7 @@
   "C:/Users/harry/AppData/Local/Programs/MiKTeX/tex/latex/xcolor/xcolor.sty" 1729265222 55384 b454dec21c2d9f45ec0b793f0995b992 ""
   "C:/Users/harry/AppData/Local/Programs/MiKTeX/tex/latex/xkeyval/xkeyval.sty" 1656236919 4937 4ce600ce9bd4ec84d0250eb6892fcf4f ""
   "C:/Users/harry/AppData/Local/Programs/MiKTeX/tex/latex/xstring/xstring.sty" 1693735632 123 a302f2c651a95033260db60e51527ae8 ""
-  "c:/Users/harry/Desktop/Master/Research/thesis/main.tex" 1788274183 3467 ef84cfd325890c740f11233d1c374814 ""
+  "c:/Users/harry/Desktop/Master/Research/ipas/main.tex" 1788274413 3042 4f7dbd2be9429a0aaf819cb85c44b4f6 ""
   "figures/architecture.pdf" 1788270187 69208 c1f293c8b23a4130150db32bf64e5a15 ""
   "figures/baseline_bfp_pe_component_power_area.pdf" 1787916750 12833 a48c5e6769a976231a955c23daf66486 ""
   "figures/bfp4_exponent_distribution.pdf" 1787889976 15129 094ef527dee3a0418819d714242584fc ""
@@ -205,10 +205,10 @@
   "figures/pe_area_energy_comparison.pdf" 1788274142 11215 ab980c9df4dbff13bce85557135732ff ""
   "figures/ppl_delta_comparison.pdf" 1787917180 14701 daa423eb2aeb8e566c1361a39127abf4 ""
   "figures/vanilla_bfp_delta_ppl_g16.pdf" 1787724129 14954 d3a7fe9efccc2487b24c62843402dbf1 ""
-  "main.aux" 1788274186 11751 25a1ccb5c56935a22e97d682ff7cf41d "pdflatex"
-  "main.bbl" 1788273907 10921 bb27489b9062eb958c6311e59966e089 "bibtex main"
-  "main.out" 1788274186 3582 e3bf2a4f7c3284b53265d796eb69f444 "pdflatex"
-  "main.tex" 1788274183 3467 ef84cfd325890c740f11233d1c374814 ""
+  "main.aux" 1788274417 11751 8c384d12cf999d4d3699596f9893706f "pdflatex"
+  "main.bbl" 1788274347 10921 bb27489b9062eb958c6311e59966e089 "bibtex main"
+  "main.out" 1788274417 3582 e3bf2a4f7c3284b53265d796eb69f444 "pdflatex"
+  "main.tex" 1788274413 3042 4f7dbd2be9429a0aaf819cb85c44b4f6 ""
   "sections/01_introduction.tex" 1788272120 4638 cff7a727ff4582f331af01f9cb2a95a0 ""
   "sections/02_background.tex" 1788270187 4145 3e29997bb67948028a12c6e2f5e77faa ""
   "sections/03_design.tex" 1788063151 6197 02a3aa221335a3708ef1398aa2b18e2c ""
