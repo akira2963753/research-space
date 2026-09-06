@@ -24,12 +24,11 @@ W13 is the better choice: overflow activity drops sharply while PE area barely g
 \subsection{Hardware and Energy Comparison}
 \label{subsec:hw_energy}
 We compare three synthesized PEs in TSMC 90\,nm at 125\,MHz: a conventional BFP4 baseline, a Bucket Getter PE~\cite{bucketgetter2023}, and the proposed PE with the 13-bit DEW accumulator of Section~\ref{subsec:dew_acc_width}.
-Bucket Getter and the proposed PE share one FP-Acc across two PEs, so Fig.~\ref{fig:pe_area_energy} counts only half of the FP-Acc area for those two designs.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/pe_area_energy_comparison.pdf}
-    \caption{Normalized PE area and energy of a BFP4 baseline, a Bucket Getter PE, and the proposed PE (TSMC 90\,nm, 125\,MHz). Bucket Getter and the proposed PE count half of the FP-Acc area to model two-PE sharing. Both metrics are normalized to the baseline.}
+    \caption{Normalized PE area and energy of a BFP4 baseline, a Bucket Getter PE, and the proposed PE (TSMC 90\,nm, 125\,MHz). Left: area. Right: energy. Bars are stacked by component and both metrics are normalized to the baseline.}
     \label{fig:pe_area_energy}
 \end{figure}
 
