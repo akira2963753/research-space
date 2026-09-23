@@ -21,6 +21,7 @@ RESULT_PATH = (
 FIGURE_DIR = PLOT_DIR / "figures"
 FIGURE_STEM = FIGURE_DIR / "dew_acc_activity_area_tradeoff"
 EXPECTED_WIDTHS = tuple(range(12, 33))
+EXPECTED_CONTEXTS = 166
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -77,6 +78,12 @@ def save_figure(fig: plt.Figure, stem: Path) -> None:
 
 def load_series() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     payload = load_json(RESULT_PATH)
+    evaluated_contexts = payload.get("runtime", {}).get("evaluated_contexts")
+    if evaluated_contexts != EXPECTED_CONTEXTS:
+        raise ValueError(
+            "Overflow result is not the complete 166-context run: "
+            f"evaluated_contexts={evaluated_contexts!r}."
+        )
     global_rows = {
         int(row["acc_width"]): row for row in payload["global_by_width"]
     }

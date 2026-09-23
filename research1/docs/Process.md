@@ -810,7 +810,14 @@ section 11.5 are superseded and must not be used for the replacement RTL.
 
 ### Priority 2: Freeze the BFP Numerical Contract
 
-- Decide whether the hardware baseline is G16/E5/M3 or G32/E5/M3.
+- Model experiments use G16 first; defer G32 until the G16 numerical contract and results are stable.
+- Follow the original MSFP definition: each G16 block stores the maximum unbiased element exponent,
+  and every explicit mantissa is aligned to that shared exponent. Model comparisons use
+  round-to-nearest-even consistently; truncation is retained only as a separately labeled ablation.
+- Keep the LLaMA decoder `nn.Linear` scope fixed and leave `lm_head` in FP16 for fair comparison.
+- TODO: change the RTL and trace-generator exponent interface from mantissa-LSB scale exponent to
+  the paper-facing MSFP maximum shared exponent. Account for the two mantissa radix offsets in the
+  product block exponent, then regenerate and reverify all baseline and DEW-PE traces.
 - Align RTL, generator, PPL experiments, and architecture diagrams to the selected group size.
 - Correct stale `include.vh` comments.
 - Add cross-check vectors derived independently from the PyTorch fake-BFP definition.
