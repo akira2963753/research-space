@@ -1,0 +1,159 @@
+{
+  "source_json": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\result\\opt-6.7b-fp16-distribution.json",
+  "model": "facebook/opt-6.7b",
+  "model_revision": "a45aa65bbeb77c1558bc99bedc6779195462dab0",
+  "activation_location": "final_layer_norm output / fc1 input",
+  "complete_input_channels_retained": true,
+  "font": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\llama2-7b\\plot\\fonts\\EBGaramond-Bold.ttf",
+  "font_weight": 700,
+  "png_dpi": 600,
+  "pooling": "block_max_for_rendering_only",
+  "relative_outlier_definition": "max(0, log2(abs(value) / complete_tensor_p99))",
+  "normalization_scope": "per_layer_per_kind_complete_tensor_p99",
+  "magnitude_weight_z_axis": [
+    0.0,
+    4.0
+  ],
+  "relative_outlier_figures": [
+    {
+      "layer_index": 0,
+      "weight_p99": 0.0435791015625,
+      "activation_p99": 0.54736328125,
+      "common_z_axis": [
+        0.0,
+        7.0
+      ],
+      "weight_display_shape": [
+        86,
+        342
+      ],
+      "activation_display_shape": [
+        86,
+        342
+      ],
+      "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer00_relative_outlier.png",
+      "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer00_relative_outlier.pdf"
+    },
+    {
+      "layer_index": 16,
+      "weight_p99": 0.04534912109375,
+      "activation_p99": 1.59765625,
+      "common_z_axis": [
+        0.0,
+        7.0
+      ],
+      "weight_display_shape": [
+        86,
+        342
+      ],
+      "activation_display_shape": [
+        86,
+        342
+      ],
+      "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer16_relative_outlier.png",
+      "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer16_relative_outlier.pdf"
+    },
+    {
+      "layer_index": 31,
+      "weight_p99": 0.050994873046875,
+      "activation_p99": 2.4296875,
+      "common_z_axis": [
+        0.0,
+        7.0
+      ],
+      "weight_display_shape": [
+        86,
+        342
+      ],
+      "activation_display_shape": [
+        86,
+        342
+      ],
+      "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer31_relative_outlier.png",
+      "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer31_relative_outlier.pdf"
+    }
+  ],
+  "absolute_magnitude_figures": [
+    {
+      "layer_index": 0,
+      "layer_name": "model.decoder.layers.0.fc1",
+      "weight_z_axis": [
+        0.0,
+        4.0
+      ],
+      "weight_z_ticks": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0
+      ],
+      "weight_max": 0.1026611328125,
+      "activation_max": 60.5625,
+      "weight_display_shape": [
+        86,
+        342
+      ],
+      "activation_display_shape": [
+        86,
+        342
+      ],
+      "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer00_distribution.png",
+      "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer00_distribution.pdf"
+    },
+    {
+      "layer_index": 16,
+      "layer_name": "model.decoder.layers.16.fc1",
+      "weight_z_axis": [
+        0.0,
+        4.0
+      ],
+      "weight_z_ticks": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0
+      ],
+      "weight_max": 0.1046142578125,
+      "activation_max": 61.46875,
+      "weight_display_shape": [
+        86,
+        342
+      ],
+      "activation_display_shape": [
+        86,
+        342
+      ],
+      "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer16_distribution.png",
+      "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer16_distribution.pdf"
+    },
+    {
+      "layer_index": 31,
+      "layer_name": "model.decoder.layers.31.fc1",
+      "weight_z_axis": [
+        0.0,
+        4.0
+      ],
+      "weight_z_ticks": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0
+      ],
+      "weight_max": 0.10003662109375,
+      "activation_max": 61.75,
+      "weight_display_shape": [
+        86,
+        342
+      ],
+      "activation_display_shape": [
+        86,
+        342
+      ],
+      "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer31_distribution.png",
+      "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\opt-6.7b\\plot\\figures\\opt_6_7b_fp16_layer31_distribution.pdf"
+    }
+  ]
+}

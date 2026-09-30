@@ -1,0 +1,29 @@
+% Requires \usepackage{booktabs} in the document preamble.
+% PPL: WikiText-2 test, non-overlapping 2048-token evaluation, G16.
+% LLaMA-2-7B: 166 blocks / 339802 evaluated tokens.
+% OPT-6.7B: 140 blocks / 286580 evaluated tokens.
+% BiE and ABiE use P95--P99 tensor-wise threshold search.
+\begin{table}[t]
+    \centering
+    \caption{WikiText-2 test perplexity of FP16, BFP, BiE, and activation-only BiE (ABiE). Lower is better.}
+    \label{tab:ppl_bfp_bie_abie_4to6}
+    \begin{tabular}{lcc}
+        \toprule
+        Method & LLaMA-2-7B & OPT-6.7B \\
+        \midrule
+        FP16  & 5.47 & 10.86 \\
+        \midrule
+        BFP6  & 5.52 & 10.89 \\
+        BiE6  & 5.49 & 10.89 \\
+        ABiE6 & 5.51 & -- \\
+        \addlinespace
+        BFP5  & 5.63 & 11.14 \\
+        BiE5  & 5.57 & 10.97 \\
+        ABiE5 & 5.60 & -- \\
+        \addlinespace
+        BFP4  & 6.12 & 13.02 \\
+        BiE4  & 5.86 & 12.64 \\
+        ABiE4 & 5.96 & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}

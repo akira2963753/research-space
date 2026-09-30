@@ -1,6 +1,6 @@
 # Research Process
 
-Last updated: 2026-08-25
+Last updated: 2026-09-27
 
 ## 1. Purpose and Authority
 
@@ -37,7 +37,9 @@ research1/
 |   |-- 04_DEW/
 |   |-- 05_DEW_Outlier_Profile/
 |   |-- 06_BiE/
+|   |-- 07_ABiE/
 |   |-- 07_ActivationBiE/
+|   |-- 08_Top2-ABiE/
 |   |-- 08_ActivationBiETop2/
 |   |-- 09_Hybrid/
 |   `-- 10_RTL_Trace/
@@ -63,8 +65,10 @@ Current inventory:
 | `03_Exponent_Profile` | 1 | 10 | G16 and G32 complete |
 | `04_DEW` | 2 | 25 | G16/G32 producers retained; recorded BFP4-BFP8, T8-T12 sweep complete |
 | `05_DEW_Outlier_Profile` | 1 | 2 | G16 and G32 complete |
-| `06_BiE` | 1 | 5 | BiE4-BiE8 complete |
+| `06_BiE` | 4 | 1 | Four P95-P99 notebooks now sweep BiE4-BiE8; only the earlier LLaMA-2-7B BiE5 JSON is measured so far |
+| `07_ABiE` | 4 | 1 | Four notebooks now sweep W-BFP4/A-BiE4 through W-BFP8/A-BiE8; only the earlier LLaMA-2-7B BiE5 JSON is measured so far |
 | `07_ActivationBiE` | 1 | 5 | BFP4/BiE4 through BFP8/BiE8 complete |
+| `08_Top2-ABiE` | 4 | 0 | W-BFP5/Top-2 A-BiE5 G16 P95-P99 notebooks ready for four models; results pending Colab runs |
 | `08_ActivationBiETop2` | 1 | 1 | BFP4/BiE4 Top-2 complete |
 | `09_Hybrid` | 2 | 20 | Symmetric T3-T12; conditional asymmetric T_replace=2-4; direct-FP-ACC asymmetric T_replace=2-8 recorded |
 | `10_RTL_Trace` | 1 | 2 | LLaMA-2-7B layer-16 down_proj G16/BFP4 trace complete |
@@ -188,7 +192,7 @@ T is an exponent-difference threshold. It is **not** the INT accumulator bit wid
 
 ### 5.3 BiE Threshold and Encoding
 
-The active BiE-family experiments use:
+The five earlier BiE-family runs used:
 
 ```text
 threshold(X) = mean(X) + 3 * std(X)
@@ -203,6 +207,52 @@ threshold selection.
 For weights, one threshold is computed per complete weight tensor before row chunking. For
 activations, one threshold is computed per complete Linear input tensor on each forward call.
 
+The `06_BiE/llama2-7b/bie.ipynb` producer now implements independent tensor-wise grid search
+for the next LLaMA-2-7B run. For every decoder Linear weight tensor and calibrated activation
+tensor, it tests the exact nearest-rank P95-P99 values of the absolute FP16 distribution,
+deduplicating only identical values. It selects the value with the lowest tensor reconstruction
+MSE and stores its float64 `log2(threshold)` exponent; inference reconstructs the FP16 threshold
+from that exponent. The zero percentile uses a reserved exponent sentinel. Calibration uses
+deterministic WikiText-2 train blocks; WikiText-2 test remains the PPL evaluation split. Search
+and inference share the BiE G16 encoder: one type bit per value, two shared exponents per block,
+and round-to-nearest-even mantissas, matching the Vanilla BFP rounding rule. Each activation
+threshold is fixed after calibration.
+The P95-P99 experiment does not impose an outlier-rate cap: it chooses the lowest-MSE
+candidate and reports the resulting rate. The retained P95-P99 JSON records G16 outlier-count
+histograms for both weights (during weight quantization) and test activations (in a separate
+profiling pass), including the counts for exactly 0 through 16 outliers per block.
+The four `06_BiE` notebooks now sweep BiE4 through BiE8 in one Colab run. Each width
+reloads FP16 weights, independently searches weight and activation thresholds using its own
+mantissa precision, evaluates PPL, and writes its own JSON with both block histograms.
+The final cell downloads one ZIP containing all five JSON files; only the previously
+measured LLaMA-2-7B BiE5 result is present in the workspace so far.
+
+The older JSON files were removed during cleanup; the following values remain as historical
+experiment notes. An earlier integer-exponent/truncation draft recorded PPL 6.280138, but
+rounding changed at the same time as threshold search. The P75-P95 nearest-even BiE5 PPL was
+5.536743 (delta +0.064640 from the FP16 baseline), compared with 5.602792
+(delta +0.130689) for the earlier signed-mu3sigma BiE5 result. Both use the same 166 test
+blocks and 339802 evaluated tokens. All 224 weight and 224 activation tensors have 21 distinct
+P75-P95 candidates, and every selected exponent round-trips to its chosen FP16 threshold.
+The recorded activation outlier-value rate was 11.223668% and the outlier-block
+rate was 70.624812%. That P75-P95 run did not record the exact 0-16
+outliers-per-block histogram; the current notebook profiles this distribution for the new run.
+The subsequent P85-P99 run recorded PPL 5.541392, weight outlier-value rate 10.294954%,
+and activation outlier-value rate 7.933348%.
+The P95-P99 run recorded PPL 5.565160, weight outlier-value rate 4.633815%, and activation
+outlier-value rate 3.844872%. Compared with P85-P99, the outlier-value rates fell by 5.661139
+and 4.088476 percentage points, respectively, while PPL increased by 0.023768. Its full G16
+block histograms are saved in
+`result/bie5-g16-p95-p99-grid-mse-rne-fp64exp-calib-train-no-lm-head-s2048.json`.
+Matching P95-P99 notebooks now exist under `06_BiE/llama2-13b/`,
+`06_BiE/llama3.1-8b/`, and `06_BiE/opt-6.7b/`. They use the corresponding FP16 baseline
+PPL and tokenizer settings, validate test token counts and quantized Linear layer counts,
+and download model-prefixed result JSON files from Colab. Their PPL and outlier profiles
+have not yet been measured.
+The PPL table below records the five older signed-mu3sigma runs whose JSON files were removed;
+BiE4 and BiE6-BiE8
+have not yet been rerun with the revised search.
+
 BiE uses:
 
 - one normal shared exponent per group;
@@ -210,6 +260,24 @@ BiE uses:
 - one type bit per value selecting the exponent.
 
 ### 5.4 Activation-Only BiE
+
+The `07_ABiE` notebooks use one shared E5 exponent per G16 weight block (BFP)
+and two shared E5 exponents plus one type bit per G16 activation block (BiE),
+with matching private widths from 4 through 8 bits. Only
+activation thresholds are searched: each Linear input tensor uses independent exact
+P95-P99 candidates from FP16 train calibration values and selects the lowest
+reconstruction-MSE candidate. The threshold is stored as a float64 log2 exponent.
+Both weights and activations use nearest-even mantissa rounding. The notebooks record
+activation outliers per block. The earlier LLaMA-2-7B BFP5/BiE5
+run records PPL 5.596632 and an activation outlier-value rate of 3.867342%; its
+G16 blocks have 0, 1, 2, and at least 3 activation outliers in 58.3247%,
+28.2664%, 9.5953%, and 3.8136% of cases, respectively. The other three models
+have not yet been measured. The older `07_ActivationBiE` runs below used signed
+`mu + 3 sigma` thresholds instead.
+The four `07_ABiE` notebooks now sweep matched BFP/BiE widths 4 through 8 in one Colab
+run. Each width reloads the original FP16 model, repeats activation calibration and
+threshold search at its own mantissa precision, and saves a separate model-prefixed
+`w-bfpN-a-bieN` JSON. The final cell downloads a ZIP of all five results.
 
 The activation-only design uses:
 
@@ -240,6 +308,13 @@ For each contiguous G16 activation block:
 
 Demoted candidates are quantized with the normal exponent; they are not discarded. The encoded
 outlier count is therefore structurally bounded at two per G16 block.
+
+The new `08_Top2-ABiE` notebooks apply this same Top-2 selection rule to the P95-P99
+threshold-search ABiE5 format, while weights remain BFP5. Candidate activation thresholds
+are evaluated with the complete Top-2 quantizer, so the search minimizes reconstruction
+MSE after demotion. Their JSON records separate candidate and encoded outlier histograms
+per G16 block, the demoted value count, and the fraction of blocks where more than two
+threshold candidates triggered the cap. No PPL result has been measured for this stage yet.
 
 ### 5.6 Current Hybrid Accumulation
 

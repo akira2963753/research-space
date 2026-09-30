@@ -45,3 +45,10 @@ Thumbs.db
 # Local downloads and editor backups
 artifacts/colab-downloads/*.zip
 artifacts/editor-backups/
+
+
+.tmp
+
+# GitHub rejects files over 100MB
+research1/experiments/01_Baseline/llama2-7b/result/llama2-7b-fp16-distribution.json
+research1/experiments/01_Baseline/opt-6.7b/result/opt-6.7b-fp16-distribution.json
