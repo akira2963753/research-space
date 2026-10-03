@@ -1,0 +1,79 @@
+{
+  "figure": "BFP4-BFP8 delta PPL versus matching FP16 baseline",
+  "font": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\01_Baseline\\llama2-7b\\plot\\fonts\\EBGaramond-Bold.ttf",
+  "bitwidth_order": [
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "series": {
+    "LLaMA-2-7B": {
+      "delta_ppl": [
+        0.6511650085449219,
+        0.1579132080078125,
+        0.0469508171081543,
+        0.01291513442993164,
+        0.0024542808532714844
+      ],
+      "result_json": [
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-7b\\result\\bfp4-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-7b\\result\\bfp5-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-7b\\result\\bfp6-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-7b\\result\\bfp7-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-7b\\result\\bfp8-g16-rne-no-lm-head-s2048.json"
+      ]
+    },
+    "LLaMA-2-13B": {
+      "delta_ppl": [
+        0.39571714401245117,
+        0.10488128662109375,
+        0.027242183685302734,
+        0.004681587219238281,
+        0.0013456344604492188
+      ],
+      "result_json": [
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-13b\\result\\bfp4-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-13b\\result\\bfp5-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-13b\\result\\bfp6-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-13b\\result\\bfp7-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama2-13b\\result\\bfp8-g16-rne-no-lm-head-s2048.json"
+      ]
+    },
+    "LLaMA-3.1-8B": {
+      "delta_ppl": [
+        1.5329241752624512,
+        0.3866119384765625,
+        0.09387683868408203,
+        0.020666122436523438,
+        0.00923299789428711
+      ],
+      "result_json": [
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama3.1-8b\\result\\bfp4-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama3.1-8b\\result\\bfp5-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama3.1-8b\\result\\bfp6-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama3.1-8b\\result\\bfp7-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\llama3.1-8b\\result\\bfp8-g16-rne-no-lm-head-s2048.json"
+      ]
+    },
+    "OPT-6.7B": {
+      "delta_ppl": [
+        2.16025447845459,
+        0.28150367736816406,
+        0.030409812927246094,
+        -0.029389381408691406,
+        -0.0047473907470703125
+      ],
+      "result_json": [
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\opt-6.7b\\result\\bfp4-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\opt-6.7b\\result\\bfp5-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\opt-6.7b\\result\\bfp6-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\opt-6.7b\\result\\bfp7-g16-rne-no-lm-head-s2048.json",
+        "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\opt-6.7b\\result\\bfp8-g16-rne-no-lm-head-s2048.json"
+      ]
+    }
+  },
+  "png": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\plot\\figures\\bfp4-bfp8_delta_ppl_vs_fp16.png",
+  "pdf": "C:\\Users\\user\\Desktop\\research\\research1\\experiments\\02_Vanilla_BFP\\plot\\figures\\bfp4-bfp8_delta_ppl_vs_fp16.pdf"
+}

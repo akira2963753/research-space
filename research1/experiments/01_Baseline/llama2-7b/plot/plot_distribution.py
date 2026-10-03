@@ -266,6 +266,20 @@ def _set_tick_font(ax: mpl.axes.Axes, font_prop: font_manager.FontProperties) ->
         tick.set_fontsize(9.5)
 
 
+def _format_index_tick(value: float, _position: int) -> str:
+    """Use explicit channel/token labels and never Matplotlib's axis offset."""
+    return f"{value / 1000:g}k" if abs(value) >= 1000 else f"{value:.0f}"
+
+
+def _style_index_axes(ax: mpl.axes.Axes) -> None:
+    formatter = FuncFormatter(_format_index_tick)
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    # 3-D ScalarFormatter offsets such as "1e4" obscure output-channel indices.
+    ax.xaxis.get_offset_text().set_visible(False)
+    ax.yaxis.get_offset_text().set_visible(False)
+
+
 def align_3d_axis_labels(ax: mpl.axes.Axes) -> None:
     """Rotate labels with the projected 3-D axes and keep them centered."""
     for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
@@ -303,15 +317,9 @@ def style_3d_axis(
     ax.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
     ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
     ax.zaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.xaxis.set_major_formatter(
-        FuncFormatter(
-            lambda value, _position: (
-                f"{value / 1000:g}k" if abs(value) >= 1000 else f"{value:.0f}"
-            )
-        )
-    )
+    _style_index_axes(ax)
     for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
-        if axis is not ax.xaxis:
+        if axis is ax.zaxis:
             formatter = ScalarFormatter(useMathText=False)
             formatter.set_powerlimits((-3, 4))
             axis.set_major_formatter(formatter)
@@ -409,15 +417,9 @@ def style_relative_axis(
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
     ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
     ax.zaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
-    ax.xaxis.set_major_formatter(
-        FuncFormatter(
-            lambda value, _position: (
-                f"{value / 1000:g}k" if abs(value) >= 1000 else f"{value:.0f}"
-            )
-        )
-    )
+    _style_index_axes(ax)
     for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
-        if axis is not ax.xaxis:
+        if axis is ax.zaxis:
             formatter = ScalarFormatter(useMathText=False)
             formatter.set_powerlimits((-3, 4))
             axis.set_major_formatter(formatter)

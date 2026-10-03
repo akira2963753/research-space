@@ -1,0 +1,28 @@
+% Requires \usepackage{booktabs} in the document preamble.
+% PPL: WikiText-2 test, non-overlapping 2048-token evaluation, G16.
+% LLaMA-2-7B: 166 blocks / 339802 evaluated tokens.
+% LLaMA-3.1-8B: 141 blocks / 288627 evaluated tokens.
+% OPT-6.7B: 140 blocks / 286580 evaluated tokens.
+% Top2A-BiE is the display name requested for the activation-only BiE rows.
+\begin{table}[t]
+    \centering
+    \caption{WikiText-2 test PPL (lower is better).}
+    \label{tab:ppl_bfp_top2abie_4to6}
+    \vspace{0.7em}
+    \begin{tabular}{lccc}
+        \toprule
+        Method & LLaMA-2-7B & LLaMA-3.1-8B & OPT-6.7B \\
+        \midrule
+        FP16        & 5.47 & 6.24 & 10.86 \\
+        \midrule
+        BFP6        & 5.52 & 6.33 & 10.89 \\
+        Top2A-BiE6  & 5.51 & 6.30 & 10.89 \\
+        \addlinespace
+        BFP5        & 5.63 & 6.62 & 11.14 \\
+        Top2A-BiE5  & 5.60 & 6.52 & 11.12 \\
+        \addlinespace
+        BFP4        & 6.12 & 7.77 & 13.02 \\
+        Top2A-BiE4  & 5.96 & 7.34 & 12.74 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
